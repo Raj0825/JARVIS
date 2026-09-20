@@ -1,0 +1,107 @@
+/* Reset basic styles and center everything on the screen */
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+}
+
+body {
+    background-color: #f4f6f9;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+}
+
+/* Title styling */
+.text-centre {
+    margin-bottom: 20px;
+    color: #333;
+    font-size: 2rem;
+    text-align: center;
+}
+
+/* Main calculator frame */
+.container {
+    background-color: #1e222b;
+    padding: 20px;
+    border-radius: 16px;
+    box-shadow: 0 10px 25px rgba(0, 0, 0, 0.2);
+    width: 320px;
+}
+
+/* Input display box styling */
+.row {
+    display: flex;
+    justify-content: space-between;
+    margin-bottom: 12px;
+}
+
+.input {
+    width: 100%;
+    height: 60px;
+    border: none;
+    border-radius: 8px;
+    background-color: #2d323f;
+    color: #ffffff;
+    font-size: 1.8rem;
+    text-align: right;
+    padding: 0 15px;
+    margin-bottom: 8px;
+    outline: none;
+}
+
+/* Button core grid layout and design */
+.button {
+    flex: 1;
+    height: 55px;
+    margin: 4px;
+    border: none;
+    border-radius: 8px;
+    font-size: 1.25rem;
+    font-weight: 600;
+    cursor: pointer;
+    background-color: #3a3f4d;
+    color: #ffffff;
+    transition: background-color 0.2s, transform 0.1s;
+}
+
+/* Hover and click animations */
+.button:hover {
+    background-color: #4a5061;
+}
+
+.button:active {
+    transform: scale(0.95);
+}
+
+/* Dynamic styling for operator and action keys */
+.button:nth-child(4), 
+.row:nth-child(2) .button {
+    background-color: #ff9f0a;
+    color: white;
+}
+
+.button:nth-child(4):hover, 
+.row:nth-child(2) .button:hover {
+    background-color: #e08b07;
+}
+
+/* Specific styling for the clear and equals buttons */
+.row:nth-child(2) .button:first-child {
+    background-color: #f44336;
+}
+
+.row:nth-child(2) .button:first-child:hover {
+    background-color: #d32f2f;
+}
+
+.row:nth-child(5) .button:last-child {
+    background-color: #4caf50;
+}
+
+.row:nth-child(5) .button:last-child:hover {
+    background-color: #388e3c;
+}
