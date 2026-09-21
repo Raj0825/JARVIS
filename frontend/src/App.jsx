@@ -1,9 +1,11 @@
 import { useCallback, useEffect, useRef, useState } from 'react';
+import { createPortal } from 'react-dom';
 import { ArcReactor } from './components/ArcReactor';
 import { BootSequence } from './components/BootSequence';
 import { TranscriptPanel } from './components/TranscriptPanel';
 import { HudCardsPanel } from './components/HudCardsPanel';
 import { SettingsModal } from './components/SettingsModal';
+import { MiniHudConsole } from './components/MiniHudConsole';
 import { useJarvisSocket } from './hooks/useJarvisSocket';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from './hooks/useSpeechSynthesis';
@@ -35,6 +37,7 @@ export default function App() {
   const [sessionId] = useState(() => 'JV-' + Math.floor(1000 + Math.random() * 9000));
   const [showBiometrics, setShowBiometrics] = useState(false);
   const [isMiniMode, setIsMiniMode] = useState(false);
+  const [pipWindow, setPipWindow] = useState(null);
 
   const { speak, stopSpeaking, isSpeakingRef } = useSpeechSynthesis();
 
@@ -60,6 +63,55 @@ export default function App() {
       document.documentElement.setAttribute('data-theme', s.theme || 'cyan');
     }).catch(() => {});
   }, []);
+
+  // ─── Picture-in-Picture Desktop Window ──────────────────────────────
+  const handleLaunchPip = useCallback(async () => {
+    if (pipWindow) {
+      pipWindow.close();
+      setPipWindow(null);
+      return;
+    }
+    if ('documentPictureInPicture' in window) {
+      try {
+        const pip = await window.documentPictureInPicture.requestWindow({
+          width: 400,
+          height: 530,
+        });
+
+        Array.from(document.styleSheets).forEach((styleSheet) => {
+          try {
+            const cssRules = Array.from(styleSheet.cssRules).map((r) => r.cssText).join('');
+            const style = document.createElement('style');
+            style.textContent = cssRules;
+            pip.document.head.appendChild(style);
+          } catch {
+            const link = document.createElement('link');
+            link.rel = 'stylesheet';
+            link.type = styleSheet.type;
+            link.media = styleSheet.media;
+            link.href = styleSheet.href;
+            pip.document.head.appendChild(link);
+          }
+        });
+
+        pip.document.title = 'JARVIS // FLOATING HUD';
+        pip.document.body.className = 'pip-body';
+        const currentTheme = document.documentElement.getAttribute('data-theme') || 'cyan';
+        pip.document.documentElement.setAttribute('data-theme', currentTheme);
+
+        pip.addEventListener('pagehide', () => {
+          setPipWindow(null);
+        });
+
+        setPipWindow(pip);
+      } catch (err) {
+        console.warn('PiP window request failed, using in-tab mini mode instead', err);
+        setIsMiniMode(true);
+      }
+    } else {
+      setIsMiniMode(true);
+    }
+  }, [pipWindow]);
 
   const [timers, setTimers] = useState([]);
 
@@ -190,8 +242,14 @@ export default function App() {
     const lower = trimmed.toLowerCase();
     if (lower.includes('mini mode') || lower.includes('compact mode') || lower.includes('minimize to reactor') || lower.includes('minimize hud')) {
       setIsMiniMode(true);
+    } else if (lower.includes('float hud') || lower.includes('picture in picture') || lower.includes('desktop hud') || lower.includes('pip mode')) {
+      handleLaunchPip();
     } else if (lower.includes('expand hud') || lower.includes('full mode') || lower.includes('maximize') || lower.includes('full screen')) {
       setIsMiniMode(false);
+      if (pipWindow) {
+        pipWindow.close();
+        setPipWindow(null);
+      }
     }
 
     sendMessage(trimmed);
@@ -251,8 +309,69 @@ export default function App() {
         </div>
       )}
 
+      {/* Picture-in-Picture Detached Screen in Main Tab */}
+      {pipWindow && (
+        <div className="pip-detached-container">
+          <div className="pip-detached-box">
+            <ArcReactor state={reactorState} size={130} />
+            <div className="pip-detached-title">FLOATING HUD ACTIVE // HOVERING ON DESKTOP</div>
+            <p className="pip-detached-desc">
+              JARVIS is currently operating in an always-on-top Picture-in-Picture window over your workspace.
+            </p>
+            <button
+              className="pip-redock-btn"
+              onClick={() => {
+                pipWindow.close();
+                setPipWindow(null);
+              }}
+            >
+              RE-DOCK TO MAIN DISPLAY
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Picture-in-Picture Portal */}
+      {pipWindow &&
+        createPortal(
+          <MiniHudConsole
+            reactorState={reactorState}
+            isListening={isListening}
+            isThinking={isThinking}
+            toggleMic={toggleMic}
+            handleSend={handleSend}
+            callSign={settings.userCallSign || 'Mr. Raj'}
+            lastMessage={messages.length > 0 ? messages[messages.length - 1] : null}
+            onExpand={() => {
+              pipWindow.close();
+              setPipWindow(null);
+              setIsMiniMode(false);
+            }}
+            isPip={true}
+          />,
+          pipWindow.document.body
+        )}
+
+      {/* In-Tab Holographic Compact / Mini HUD Console */}
+      {isMiniMode && !pipWindow && (
+        <div className="mini-hud-center-stage">
+          <MiniHudConsole
+            reactorState={reactorState}
+            isListening={isListening}
+            isThinking={isThinking}
+            toggleMic={toggleMic}
+            handleSend={handleSend}
+            callSign={settings.userCallSign || 'Mr. Raj'}
+            lastMessage={messages.length > 0 ? messages[messages.length - 1] : null}
+            onExpand={() => setIsMiniMode(false)}
+            onLaunchPip={'documentPictureInPicture' in window ? handleLaunchPip : null}
+            isPip={false}
+          />
+        </div>
+      )}
+
       {/* Main HUD grid */}
-      <div className={`app-frame ${isMiniMode ? 'hidden-shell' : ''}`}>
+      <div className={`app-frame ${isMiniMode || pipWindow ? 'hidden-shell' : ''}`}>
 
         {/* ─── Top bar ─────────────────────────────────────────────────── */}
         <div className="topbar">
@@ -326,9 +445,24 @@ export default function App() {
             >
               👁 BIOMETRIC SCAN
             </button>
-            <button className="btn-icon" id="btn-mini-mode" title="Toggle Floating Mini HUD" onClick={() => setIsMiniMode(!isMiniMode)}>
+            <button
+              className={`btn-icon ${isMiniMode ? 'active' : ''}`}
+              id="btn-mini-mode"
+              title={isMiniMode ? 'Expand to Full HUD' : 'Switch to Compact HUD'}
+              onClick={() => setIsMiniMode(!isMiniMode)}
+            >
               {isMiniMode ? '⛶' : '🗖'}
             </button>
+            {'documentPictureInPicture' in window && (
+              <button
+                className="btn-icon"
+                id="btn-pip-mode"
+                title="Detach to Desktop (Always-on-Top Floating Picture-in-Picture)"
+                onClick={handleLaunchPip}
+              >
+                🗗
+              </button>
+            )}
             <button className="btn-icon" id="btn-settings" title="Settings" onClick={() => setShowSettings(true)}>⚙</button>
             <button className="btn-icon" id="btn-new-conv" title="New conversation" onClick={() => {
               newConversation();
@@ -429,28 +563,6 @@ export default function App() {
           speak(`Biometric identity verified. Welcome back, ${callSign}.`);
         }}
       />
-
-      {/* ─── Floating Mini-HUD Mode ──────────────────────────────────── */}
-      {isMiniMode && (
-        <div className="mini-floating-hud">
-          <div className="mini-hud-reactor" onClick={() => setIsMiniMode(false)} title="Click to expand full HUD">
-            <ArcReactor state={reactorState} size={84} />
-            <div className="mini-hud-expand-badge">⛶</div>
-          </div>
-          <div className="mini-hud-controls">
-            <button
-              className={`mini-mic-btn ${isListening ? 'active' : ''}`}
-              onClick={toggleMic}
-              title={isListening ? 'Stop listening' : 'Speak to Jarvis'}
-            >
-              🎙
-            </button>
-            <span className="mini-hud-label">
-              {isThinking ? 'THINKING...' : isListening ? 'LISTENING...' : (settings.userCallSign || 'MR. RAJ').toUpperCase()}
-            </span>
-          </div>
-        </div>
-      )}
     </>
   );
 }
