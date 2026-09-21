@@ -55,7 +55,7 @@ export function BiometricScannerModal({ isOpen, onClose, onVerified }) {
       setTimeout(() => {
         setScanStep(4);
         try { audioEffects.reply(); } catch (_) {}
-        onVerified?.('Tony Stark');
+        onVerified?.('Mr. Raj');
       }, 4800),
     ];
 
@@ -124,8 +124,8 @@ export function BiometricScannerModal({ isOpen, onClose, onVerified }) {
           {isVerified && (
             <div className="biometric-verified-overlay">
               <div className="verified-stamp">IDENTITY VERIFIED</div>
-              <div className="verified-name">ANTHONY E. STARK</div>
-              <div className="verified-clearance">SECURITY CLEARANCE: LEVEL 10 EXECUTIVE</div>
+              <div className="verified-name">RAJ SHAH</div>
+              <div className="verified-clearance">SECURITY CLEARANCE: LEVEL 10 // MR. RAJ</div>
             </div>
           )}
         </div>

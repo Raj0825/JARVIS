@@ -1395,3 +1395,87 @@ body {
   transition: width 0.4s ease, background-color 0.4s ease;
 }
 
+/* Floating Mini-HUD Mode */
+.mini-floating-hud {
+  position: fixed;
+  bottom: 24px;
+  right: 24px;
+  z-index: 99999;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 8px;
+  background: rgba(10, 14, 22, 0.88);
+  backdrop-filter: blur(16px);
+  border: 1px solid var(--c-glow);
+  box-shadow: 0 0 25px rgba(var(--c-glow-rgb), 0.35);
+  border-radius: 50px;
+  padding: 10px 14px;
+  transition: all 0.3s ease;
+}
+
+.mini-hud-reactor {
+  cursor: pointer;
+  position: relative;
+  transition: transform 0.2s ease;
+}
+.mini-hud-reactor:hover {
+  transform: scale(1.06);
+}
+.mini-hud-expand-badge {
+  position: absolute;
+  top: -4px;
+  right: -4px;
+  background: var(--c-glow);
+  color: #000;
+  border-radius: 50%;
+  width: 20px;
+  height: 20px;
+  font-size: 11px;
+  font-weight: 800;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-shadow: 0 0 8px var(--c-glow);
+}
+
+.mini-hud-controls {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.mini-mic-btn {
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid var(--c-line);
+  color: var(--c-text);
+  border-radius: 50%;
+  width: 28px;
+  height: 28px;
+  font-size: 13px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+}
+.mini-mic-btn.active {
+  background: rgba(255, 30, 80, 0.25);
+  border-color: var(--c-danger);
+  color: var(--c-danger);
+  animation: pulse-danger 1s infinite;
+}
+
+.mini-hud-label {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--c-bright);
+}
+
+.hidden-shell {
+  display: none !important;
+}
+
+

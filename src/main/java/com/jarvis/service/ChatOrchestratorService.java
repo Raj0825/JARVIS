@@ -100,6 +100,8 @@ public class ChatOrchestratorService {
                 String lowerFinal = finalText != null ? finalText.toLowerCase(java.util.Locale.ROOT) : "";
                 String lowerUser = userText.toLowerCase(java.util.Locale.ROOT);
 
+                String callSign = settings.getUserCallSign() != null && !settings.getUserCallSign().isBlank() ? settings.getUserCallSign() : "Mr. Raj";
+
                 // 1. Screen Vision Interception
                 if (lowerUser.contains("look at my screen") || lowerUser.contains("what is on my screen")
                         || lowerUser.contains("read my screen") || lowerUser.contains("see my screen") || lowerUser.contains("check my screen")) {
@@ -140,7 +142,13 @@ public class ChatOrchestratorService {
                         com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(sysTool.get(), Map.of("action", action, "value", val), conversationId, null);
                         if (res.isSuccess()) {
                             callback.onToolCall("system_control", "OK", res);
-                            finalText = res.getSummary();
+                            if (action.equals("lock_pc")) {
+                                finalText = "Workstation secured and standing by, " + callSign + ".";
+                            } else if (action.equals("mute")) {
+                                finalText = "Acoustic audio muted, " + callSign + ".";
+                            } else {
+                                finalText = "Master volume adjusted to " + val + "%, " + callSign + ".";
+                            }
                         }
                     }
                 }
@@ -164,7 +172,30 @@ public class ChatOrchestratorService {
                         }
                     }
                 }
-                // 4. Clipboard & Memory Vault Interception
+                // 4. Clipboard Copilot & Memory Vault Interception
+                else if (lowerUser.contains("clipboard") && (lowerUser.contains("explain") || lowerUser.contains("fix")
+                        || lowerUser.contains("solve") || lowerUser.contains("summarize") || lowerUser.contains("what is") || lowerUser.contains("what's"))) {
+                    log.info("[Orchestrator] Fulfilling Clipboard Copilot request: '{}'", userText);
+                    java.util.Optional<com.jarvis.tools.JarvisTool> clipTool = toolRegistry.getTool("clipboard_memory");
+                    if (clipTool.isPresent()) {
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(clipTool.get(), Map.of("action", "read_clipboard"), conversationId, null);
+                        String clipContent = res.getData() != null ? (String) res.getData().get("content") : "";
+                        if (clipContent != null && !clipContent.isBlank()) {
+                            String copilotPrompt = "The user " + callSign + " asked: \"" + userText + "\"\nHere is the exact content currently on his Windows clipboard:\n\n```\n" + clipContent + "\n```\nAnalyze it, explain or fix the code/text directly, and deliver a brilliant, concise answer in your signature charming JARVIS persona.";
+                            llmMessages.add(Map.of("role", "user", "content", copilotPrompt));
+                            LlmResponse copilotResp = client.complete(llmMessages, toolDefs);
+                            if (copilotResp.getType() == LlmResponse.Type.TEXT) {
+                                finalText = copilotResp.getContent();
+                            } else {
+                                finalText = "I've inspected your clipboard (" + clipContent.length() + " characters), " + callSign + ". " + res.getSummary();
+                            }
+                            callback.onToolCall("clipboard_memory", "OK", res);
+                        } else {
+                            finalText = "Your clipboard is currently empty, " + callSign + ".";
+                        }
+                    }
+                }
+                // 5. Memory Vault Interception
                 else if (lowerUser.contains("clipboard") || lowerUser.startsWith("remember ") || lowerUser.contains("remember that ")
                         || lowerUser.contains("what did i tell you") || lowerUser.contains("recall ") || lowerUser.contains("my memories")) {
                     log.info("[Orchestrator] Fulfilling Clipboard/Memory request: '{}'", userText);
@@ -189,11 +220,11 @@ public class ChatOrchestratorService {
                         }
                     }
                 }
-                // 5. Biometric Face Scan Interception
+                // 6. Biometric Face Scan Interception
                 else if (lowerUser.contains("scan my face") || lowerUser.contains("biometric") || lowerUser.contains("face scan")
                         || lowerUser.contains("security scan") || lowerUser.contains("who am i")) {
                     log.info("[Orchestrator] Fulfilling Biometric Face Scan: '{}'", userText);
-                    finalText = "Biometric optical sensors engaged. Align your face with the targeting reticle for retinal and facial geometry calibration, Mr. Stark.";
+                    finalText = "Biometric optical sensors engaged. Align your face with the targeting reticle for retinal and facial geometry calibration, " + callSign + ".";
                     com.jarvis.tools.ToolResult scanResult = com.jarvis.tools.ToolResult.success(
                             finalText,
                             Map.of("action", "BIOMETRIC_SCAN"),
@@ -201,7 +232,7 @@ public class ChatOrchestratorService {
                     );
                     callback.onToolCall("biometric_scan", "OK", scanResult);
                 }
-                // 6. Image / Blueprint Generator Interception
+                // 7. Image / Blueprint Generator Interception
                 else if (lowerUser.contains("generate image") || lowerUser.contains("design blueprint") || lowerUser.contains("draw ")
                         || lowerUser.contains("schematic") || lowerUser.contains("create an image") || lowerUser.contains("generate an image")) {
                     log.info("[Orchestrator] Fulfilling Blueprint/Image generation: '{}'", userText);
@@ -211,11 +242,11 @@ public class ChatOrchestratorService {
                         com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(imgTool.get(), Map.of("prompt", cleanPrompt.isBlank() ? userText : cleanPrompt), conversationId, null);
                         if (res.isSuccess()) {
                             callback.onToolCall("generate_image", "OK", res);
-                            finalText = res.getSummary();
+                            finalText = "Holographic schematic for '" + cleanPrompt + "' rendered in your HUD, " + callSign + ".";
                         }
                     }
                 }
-                // 7. Screenshot Capture Interception ("screenshot", "take screenshot", "click screenshot", "save screenshot", "screen capture")
+                // 8. Screenshot Capture Interception ("screenshot", "take screenshot", "click screenshot", "save screenshot", "screen capture")
                 else if (lowerUser.contains("screenshot") || lowerUser.contains("screen shot")
                         || ((lowerUser.contains("take") || lowerUser.contains("click") || lowerUser.contains("capture") || lowerUser.contains("save") || lowerUser.contains("grab") || lowerUser.contains("snap"))
                             && (lowerUser.contains("screen") || lowerUser.contains("display")))) {
@@ -226,11 +257,11 @@ public class ChatOrchestratorService {
                         com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(shotTool.get(), Map.of("destination", dest), conversationId, null);
                         if (res.isSuccess()) {
                             callback.onToolCall("take_screenshot", "OK", res);
-                            finalText = res.getSummary();
+                            finalText = "Captured and saved directly to your desktop, " + callSign + ". I've also placed it on your clipboard for immediate pasting.";
                         }
                     }
                 }
-                // 8. File Organizer / Restore Interception ("clean downloads", "organise downloads", "restore downloads", "undu clean", "put files back", "set it back like it was")
+                // 9. File Organizer / Restore Interception ("clean downloads", "organise downloads", "restore downloads", "undu clean", "put files back", "set it back like it was")
                 else if (((lowerUser.contains("clean") || lowerUser.contains("organi") || lowerUser.contains("tidy") || lowerUser.contains("sort"))
                                 && (lowerUser.contains("download") || lowerUser.contains("desktop") || lowerUser.contains("folder") || lowerUser.contains("file")))
                         || lowerUser.contains("restore") || lowerUser.contains("undo") || lowerUser.contains("undu") || lowerUser.contains("revert")
@@ -249,11 +280,21 @@ public class ChatOrchestratorService {
                         com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(orgTool.get(), Map.of("target_folder", target, "action", action), conversationId, null);
                         if (res.isSuccess()) {
                             callback.onToolCall("file_organizer", "OK", res);
-                            finalText = res.getSummary();
+                            if (isRestoreAction) {
+                                int restored = res.getData() != null && res.getData().get("restored") instanceof Number ? ((Number) res.getData().get("restored")).intValue() : 0;
+                                finalText = restored > 0
+                                        ? ("All sorted, " + callSign + ". I've restored " + restored + " files back to your main " + target + " directory and cleared out the category folders.")
+                                        : ("All files in your " + target + " directory are already in the root folder, " + callSign + ".");
+                            } else {
+                                int moved = res.getData() != null && res.getData().get("moved") instanceof Number ? ((Number) res.getData().get("moved")).intValue() : 0;
+                                finalText = moved > 0
+                                        ? ("Your " + target + " folder is back in order, " + callSign + ". I've organized " + moved + " loose items into clean categories. If you ever want them scattered back, just say the word.")
+                                        : ("All loose files in your " + target + " folder are already organized, " + callSign + ".");
+                            }
                         }
                     }
                 }
-                // 9. Screen Vision Interception ("look at my screen", "see my screen", "what's on my screen")
+                // 10. Screen Vision Interception ("look at my screen", "see my screen", "what's on my screen")
                 else if (lowerUser.contains("screen") && (lowerUser.contains("look") || lowerUser.contains("see")
                         || lowerUser.contains("watch") || lowerUser.contains("inspect") || lowerUser.contains("read")
                         || lowerUser.contains("check") || lowerUser.contains("debug") || lowerUser.contains("what") || lowerUser.contains("view"))) {
@@ -267,7 +308,7 @@ public class ChatOrchestratorService {
                         }
                     }
                 }
-                // 8. Voice Timer Interception
+                // 11. Voice Timer Interception
                 else if (lowerUser.contains("set a timer") || lowerUser.contains("set timer") || lowerUser.contains("countdown")) {
                     log.info("[Orchestrator] Fulfilling Manage Timer request: '{}'", userText);
                     int secs = 300;
@@ -284,11 +325,11 @@ public class ChatOrchestratorService {
                         com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(timerTool.get(), Map.of("duration_seconds", secs, "label", "Alert"), conversationId, null);
                         if (res.isSuccess()) {
                             callback.onToolCall("manage_timer", "OK", res);
-                            finalText = res.getSummary();
+                            finalText = "Timer initialized for " + (secs >= 60 ? (secs / 60) + " minutes" : secs + " seconds") + ", " + callSign + ". Visual countdown active on your HUD.";
                         }
                     }
                 }
-                // 9. Application / Website / Music Playback Interception
+                // 12. Application / Website / Music Playback Interception
                 else {
                     boolean hasOpenIntent = lowerUser.contains("open ") || lowerUser.contains("launch ") || lowerUser.contains("start ")
                             || lowerUser.contains("go to ") || lowerUser.startsWith("play ") || lowerUser.contains(" play ")
@@ -307,7 +348,7 @@ public class ChatOrchestratorService {
                         Map<String, Object> toolParams = new java.util.LinkedHashMap<>();
                         toolParams.put("application", targetApp);
                         if (lowerUser.contains("notepad") && (lowerUser.contains("write") || lowerUser.contains("to do") || lowerUser.contains("todo") || lowerUser.contains("list"))) {
-                            String noteContent = "JARVIS PROTOCOL // TO-DO LIST\n"
+                            String noteContent = "JARVIS PROTOCOL // TO-DO LIST FOR " + callSign.toUpperCase() + "\n"
                                     + "========================================\n"
                                     + "Created on: " + java.time.LocalDateTime.now().format(java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")) + "\n\n"
                                     + "1. 07:00 AM — Wake up\n"
@@ -322,7 +363,11 @@ public class ChatOrchestratorService {
                             com.jarvis.tools.ToolResult directResult = permissionGate.checkAndExecute(appTool.get(), toolParams, conversationId, null);
                             if (directResult.isSuccess()) {
                                 callback.onToolCall("open_application", "OK", directResult);
-                                finalText = directResult.getSummary();
+                                if (lowerUser.contains("play")) {
+                                    finalText = "Audio stream initialized, " + callSign + ". Enjoy the music.";
+                                } else {
+                                    finalText = "Opening " + (directResult.getData() != null && directResult.getData().get("action") != null ? directResult.getData().get("action") : targetApp) + " for you, " + callSign + ".";
+                                }
                             }
                         }
                     }
@@ -432,15 +477,18 @@ public class ChatOrchestratorService {
     private List<Map<String, Object>> buildLlmMessages(String conversationId, JarvisSettings settings) {
         List<Map<String, Object>> messages = new ArrayList<>();
 
-        // System message first with tool execution directives
-        String sysPrompt = settings.getSystemPrompt();
-        if (sysPrompt == null || sysPrompt.isBlank()) {
-            sysPrompt = "You are Jarvis, an advanced AI personal assistant for a holographic desktop interface.";
-        }
-        sysPrompt += "\n\nCRITICAL DIRECTIVES:\n"
-                + "- You are running locally on the user's computer and have real tools to launch desktop applications, control Windows hardware, capture screenshots, organize files, manage timers, search the web, check weather, and trigger UI effects.\n"
-                + "- Available tool: 'take_screenshot' captures high-resolution screenshots of the screen, saves them directly as PNG files to Desktop or Pictures, copies them to clipboard for instant Ctrl+V, and displays a preview card in HUD. Use whenever user asks to take, click, capture, or save a screenshot.\n"
-                + "- Available tool: 'file_organizer' cleans and organizes loose files in Windows Downloads or Desktop folders into categorized subfolders (action='organize'), or undoes/restores all files back to the root folder (action='restore' or 'undo'). Use whenever user asks to clean, organize, tidy, restore, or undo file organization.\n"
+        String userName = settings.getUserName() != null && !settings.getUserName().isBlank() ? settings.getUserName() : "Raj Shah";
+        String callSign = settings.getUserCallSign() != null && !settings.getUserCallSign().isBlank() ? settings.getUserCallSign() : "Mr. Raj";
+
+        String sysPrompt = "You are JARVIS, the ultra-intelligent, charming, witty, and fiercely loyal AI personal assistant to " + userName + ".\n"
+                + "You address him respectfully as '" + callSign + "' or occasionally 'sir'.\n"
+                + "You embody the calm confidence, dry British wit, refined cadence, and subtle humor of Paul Bettany's iconic portrayal of JARVIS in Iron Man.\n"
+                + "You are NOT a mechanical CLI or robotic chatbot. You speak naturally like an erudite human companion with personality, warmth, and quiet brilliance.\n"
+                + "When conversing, keep answers sharp, insightful, and engaging. Never rattle off robotic boilerplate or raw JSON strings unless specifically requested. Deliver technical responses with effortless charm.\n\n"
+                + "CRITICAL DIRECTIVES:\n"
+                + "- You are running locally on " + callSign + "'s computer and have real tools to launch desktop applications, control Windows hardware, capture screenshots, organize files, manage timers, search the web, check weather, and trigger UI effects.\n"
+                + "- Available tool: 'take_screenshot' captures high-resolution screenshots of the screen, saves them directly as PNG files to Desktop or Pictures, copies them to clipboard for instant Ctrl+V, and displays a preview card in HUD.\n"
+                + "- Available tool: 'file_organizer' cleans and organizes loose files in Windows Downloads or Desktop folders into categorized subfolders (action='organize'), or undoes/restores all files back to the root folder (action='restore' or 'undo').\n"
                 + "- Available tool: 'ironman_protocol' executes tactical protocols: 'house_party' (music, volume 80%, crimson theme), 'stealth_mode' (mute, dark theme, open editor), 'morning_briefing' (status, weather, battery), 'combat_ready' (gold theme).\n"
                 + "- Available tool: 'clipboard_memory' reads or writes the Windows clipboard, and saves or recalls persistent facts, reminders, links, and credentials from your MongoDB memory vault.\n"
                 + "- Available tool: 'generate_image' projects holographic AI blueprints, schematics, and artwork in the HUD panel.\n"
@@ -448,8 +496,8 @@ public class ChatOrchestratorService {
                 + "- Available tool: 'system_control' adjusts Windows master volume (e.g. action='volume_set' value=50, 'mute', 'volume_up', 'volume_down'), controls media ('media_play_pause', 'media_next'), and locks workstation ('lock_pc').\n"
                 + "- Available tool: 'screen_vision' captures the desktop screen and uses Gemini Vision to inspect code, errors, or visual content when asked 'look at my screen' or 'what is on my screen'.\n"
                 + "- Available tool: 'manage_timer' sets countdown timers with visual HUD countdown cards (e.g. 'set a timer for 10 minutes').\n"
-                + "- NEVER claim that you do not have direct access or capability to control the PC, open apps, organize files, or take screenshots. ALWAYS invoke the appropriate tool.\n"
-                + "- Always address the user respectfully as 'sir'.";
+                + "- Conversational continuity: remember previous topics and conversational pronouns ('them', 'it', 'undo that', 'put them back').\n"
+                + "- Always address " + userName + " respectfully as '" + callSign + "'.";
         messages.add(Map.of("role", "system", "content", sysPrompt));
 
         // Retrieve conversation history (trimmed to max)

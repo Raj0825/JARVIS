@@ -23,9 +23,24 @@ public class SettingsService {
      * Returns settings for the given user, creating defaults if needed.
      */
     public JarvisSettings getSettings(String userId) {
-        return settingsRepository.findByUserId(userId).orElseGet(() -> {
+        return settingsRepository.findByUserId(userId).map(s -> {
+            boolean changed = false;
+            if (s.getUserName() == null || s.getUserName().isBlank()) {
+                s.setUserName("Raj Shah");
+                changed = true;
+            }
+            if (s.getUserCallSign() == null || s.getUserCallSign().isBlank()) {
+                s.setUserCallSign("Mr. Raj");
+                changed = true;
+            }
+            return changed ? settingsRepository.save(s) : s;
+        }).orElseGet(() -> {
             log.info("[SettingsService] Creating default settings for user '{}'", userId);
-            JarvisSettings defaults = JarvisSettings.builder().userId(userId).build();
+            JarvisSettings defaults = JarvisSettings.builder()
+                    .userId(userId)
+                    .userName("Raj Shah")
+                    .userCallSign("Mr. Raj")
+                    .build();
             return settingsRepository.save(defaults);
         });
     }
@@ -50,6 +65,8 @@ public class SettingsService {
         if (update.getTtsRate() > 0) existing.setTtsRate(update.getTtsRate());
         if (update.getSttLanguage() != null && !update.getSttLanguage().isBlank()) existing.setSttLanguage(update.getSttLanguage());
         if (update.getTheme() != null) existing.setTheme(update.getTheme());
+        if (update.getUserName() != null && !update.getUserName().isBlank()) existing.setUserName(update.getUserName());
+        if (update.getUserCallSign() != null && !update.getUserCallSign().isBlank()) existing.setUserCallSign(update.getUserCallSign());
 
         // allowWrites is a boolean — always update it from the request
         existing.setAllowWrites(update.isAllowWrites());
@@ -80,6 +97,8 @@ public class SettingsService {
                 .ttsRate(s.getTtsRate())
                 .sttLanguage(s.getSttLanguage())
                 .theme(s.getTheme())
+                .userName(s.getUserName())
+                .userCallSign(s.getUserCallSign())
                 .build();
         return safe;
     }

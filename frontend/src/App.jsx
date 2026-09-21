@@ -10,6 +10,7 @@ import { useSpeechSynthesis } from './hooks/useSpeechSynthesis';
 import { audioEffects } from './utils/audioEffects';
 import { TelemetryGaugePanel } from './components/TelemetryGaugePanel';
 import { BiometricScannerModal } from './components/BiometricScannerModal';
+import { useAmbientAlerts } from './hooks/useAmbientAlerts';
 
 // ─── State machine ────────────────────────────────────────────────────────
 // idle | listening | thinking | speaking
@@ -33,8 +34,16 @@ export default function App() {
   const [clock, setClock] = useState('');
   const [sessionId] = useState(() => 'JV-' + Math.floor(1000 + Math.random() * 9000));
   const [showBiometrics, setShowBiometrics] = useState(false);
+  const [isMiniMode, setIsMiniMode] = useState(false);
 
   const { speak, stopSpeaking, isSpeakingRef } = useSpeechSynthesis();
+
+  // ─── Ambient Telemetry & Battery Proactive Alerts ─────────────────────
+  useAmbientAlerts({
+    speak,
+    addMessage: (role, content) => addMessage(role, content),
+    callSign: settings.userCallSign || 'Mr. Raj'
+  });
 
   // ─── Clock ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -90,7 +99,8 @@ export default function App() {
   // ─── WebSocket ────────────────────────────────────────────────────────
   const { status: wsStatus, sendMessage, newConversation, reconnect } = useJarvisSocket({
     onConnected: () => {
-      addMessage('assistant', 'All systems online. Establishing neural link… say "Hey Jarvis" or type below to begin.');
+      const callSign = settings.userCallSign || 'Mr. Raj';
+      addMessage('assistant', `All systems online, ${callSign}. Neural link established and standing by for your command.`);
     },
     onThinking: (s) => {
       setIsThinking(true);
@@ -176,6 +186,14 @@ export default function App() {
     addMessage('user', trimmed);
     audioEffects.send();
     if (isSpeakingRef.current) stopSpeaking();
+
+    const lower = trimmed.toLowerCase();
+    if (lower.includes('mini mode') || lower.includes('compact mode') || lower.includes('minimize to reactor') || lower.includes('minimize hud')) {
+      setIsMiniMode(true);
+    } else if (lower.includes('expand hud') || lower.includes('full mode') || lower.includes('maximize') || lower.includes('full screen')) {
+      setIsMiniMode(false);
+    }
+
     sendMessage(trimmed);
   }, [textValue, sendMessage, stopSpeaking, isSpeakingRef]);
 
@@ -234,7 +252,7 @@ export default function App() {
       )}
 
       {/* Main HUD grid */}
-      <div className="app-frame">
+      <div className={`app-frame ${isMiniMode ? 'hidden-shell' : ''}`}>
 
         {/* ─── Top bar ─────────────────────────────────────────────────── */}
         <div className="topbar">
@@ -307,6 +325,9 @@ export default function App() {
               }}
             >
               👁 BIOMETRIC SCAN
+            </button>
+            <button className="btn-icon" id="btn-mini-mode" title="Toggle Floating Mini HUD" onClick={() => setIsMiniMode(!isMiniMode)}>
+              {isMiniMode ? '⛶' : '🗖'}
             </button>
             <button className="btn-icon" id="btn-settings" title="Settings" onClick={() => setShowSettings(true)}>⚙</button>
             <button className="btn-icon" id="btn-new-conv" title="New conversation" onClick={() => {
@@ -402,10 +423,34 @@ export default function App() {
         onClose={() => setShowBiometrics(false)}
         onVerified={() => {
           setShowBiometrics(false);
-          addMessage('assistant', 'Biometric identity verified: Anthony E. Stark. Security clearance Level 10 Executive confirmed. Welcome back, Mr. Stark.');
-          speak('Biometric identity verified. Welcome back, Mr. Stark.');
+          const callSign = settings.userCallSign || 'Mr. Raj';
+          const uName = settings.userName || 'Raj Shah';
+          addMessage('assistant', `Biometric identity verified: ${uName}. Security clearance Level 10 confirmed. Welcome back, ${callSign}.`);
+          speak(`Biometric identity verified. Welcome back, ${callSign}.`);
         }}
       />
+
+      {/* ─── Floating Mini-HUD Mode ──────────────────────────────────── */}
+      {isMiniMode && (
+        <div className="mini-floating-hud">
+          <div className="mini-hud-reactor" onClick={() => setIsMiniMode(false)} title="Click to expand full HUD">
+            <ArcReactor state={reactorState} size={84} />
+            <div className="mini-hud-expand-badge">⛶</div>
+          </div>
+          <div className="mini-hud-controls">
+            <button
+              className={`mini-mic-btn ${isListening ? 'active' : ''}`}
+              onClick={toggleMic}
+              title={isListening ? 'Stop listening' : 'Speak to Jarvis'}
+            >
+              🎙
+            </button>
+            <span className="mini-hud-label">
+              {isThinking ? 'THINKING...' : isListening ? 'LISTENING...' : (settings.userCallSign || 'MR. RAJ').toUpperCase()}
+            </span>
+          </div>
+        </div>
+      )}
     </>
   );
 }

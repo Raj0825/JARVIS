@@ -28,6 +28,9 @@ public class IronManProtocolTool implements JarvisTool {
     @Autowired
     private SystemControlTool systemControlTool;
 
+    @Autowired
+    private com.jarvis.service.SettingsService settingsService;
+
     @Override
     public String getName() {
         return "ironman_protocol";
@@ -59,7 +62,15 @@ public class IronManProtocolTool implements JarvisTool {
         if (protocol == null) protocol = "house_party";
         protocol = protocol.toLowerCase(Locale.ROOT).trim();
 
-        log.info("[IronManProtocol] Engaging protocol: '{}'", protocol);
+        String callSign = "Mr. Raj";
+        try {
+            com.jarvis.model.JarvisSettings s = settingsService.getSettings("default");
+            if (s.getUserCallSign() != null && !s.getUserCallSign().isBlank()) {
+                callSign = s.getUserCallSign();
+            }
+        } catch (Exception ignored) {}
+
+        log.info("[IronManProtocol] Engaging protocol: '{}' for {}", protocol, callSign);
 
         try {
             switch (protocol) {
@@ -80,7 +91,7 @@ public class IronManProtocolTool implements JarvisTool {
                     }
 
                     return ToolResult.success(
-                            "Protocol House Party engaged, sir! Master volume elevated to 80%, Iron Man Crimson armor theme activated, and audio stream initialized. Welcome to the party.",
+                            "Protocol House Party engaged, " + callSign + "! Master volume elevated to 80%, Iron Man Crimson armor theme active, and audio stream initialized. Welcome to the party.",
                             Map.of("protocol", "house_party", "volume", 80, "theme", "crimson"),
                             Map.of("action", "SET_THEME", "theme", "crimson")
                     );
@@ -102,7 +113,7 @@ public class IronManProtocolTool implements JarvisTool {
                     }
 
                     return ToolResult.success(
-                            "Protocol Stealth engaged. All acoustic emissions suppressed, IDE initiated, and workstation running in low-signature profile, sir.",
+                            "Protocol Stealth engaged, " + callSign + ". Acoustic emissions suppressed, IDE initiated, and workstation operating in a low-signature profile.",
                             Map.of("protocol", "stealth_mode", "audio", "muted", "theme", "cyan"),
                             Map.of("action", "SET_THEME", "theme", "cyan")
                     );
@@ -118,8 +129,8 @@ public class IronManProtocolTool implements JarvisTool {
                     long freeGb = cDrive.getFreeSpace() / (1024 * 1024 * 1024);
 
                     String briefing = String.format(
-                            "Good morning, sir. It is currently %s on %s. Workstation telemetry is nominal with %d gigabytes of storage available. All Jarvis subroutines, neural vision, and speech arrays are standing by for today's objectives.",
-                            timeStr, dateStr, freeGb
+                            "Good morning, %s. It is %s on %s. Workstation telemetry is nominal with %d GB of high-speed storage free. All optical sensors, neural reasoning, and local arrays are at your command.",
+                            callSign, timeStr, dateStr, freeGb
                     );
 
                     return ToolResult.success(
@@ -133,7 +144,7 @@ public class IronManProtocolTool implements JarvisTool {
                     systemControlTool.execute(Map.of("action", "volume_set", "value", 70));
 
                     return ToolResult.success(
-                            "Flight readiness protocol engaged! Arc Reactor output stabilized at maximum capacity. Repulsor telemetry calibrated and target acquisition online. Ready for deployment, sir.",
+                            "Flight readiness protocol engaged! Arc Reactor output stabilized at maximum capacity. Repulsor telemetry calibrated and target acquisition online. Ready for deployment, " + callSign + ".",
                             Map.of("protocol", "combat_ready", "theme", "gold"),
                             Map.of("action", "SET_THEME", "theme", "gold")
                     );
@@ -142,7 +153,7 @@ public class IronManProtocolTool implements JarvisTool {
                 case "security_lockdown", "lock_pc" -> {
                     systemControlTool.execute(Map.of("action", "lock_pc"));
                     return ToolResult.success(
-                            "Security lockdown protocol executed. Workstation locked down, sir.",
+                            "Security lockdown protocol executed. Workstation locked down and secured, " + callSign + ".",
                             Map.of("protocol", "security_lockdown"),
                             null
                     );

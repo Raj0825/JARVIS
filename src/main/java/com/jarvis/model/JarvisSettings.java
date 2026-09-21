@@ -63,4 +63,10 @@ public class JarvisSettings {
 
     @Builder.Default
     private String theme = "cyan";
+
+    @Builder.Default
+    private String userName = "Raj Shah";
+
+    @Builder.Default
+    private String userCallSign = "Mr. Raj";
 }
