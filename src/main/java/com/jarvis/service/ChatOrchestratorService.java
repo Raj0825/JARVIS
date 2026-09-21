@@ -230,18 +230,22 @@ public class ChatOrchestratorService {
                         }
                     }
                 }
-                // 8. File Organizer / Restore Interception ("clean downloads", "organize downloads", "restore downloads", "undo clean", "put files back")
-                else if ((lowerUser.contains("clean") || lowerUser.contains("organize") || lowerUser.contains("tidy") || lowerUser.contains("sort")
-                        || lowerUser.contains("restore") || lowerUser.contains("undo") || lowerUser.contains("revert") || lowerUser.contains("unorganize")
-                        || lowerUser.contains("put back") || lowerUser.contains("back to same") || lowerUser.contains("back to how") || lowerUser.contains("bring back"))
-                        && (lowerUser.contains("download") || lowerUser.contains("downloads") || lowerUser.contains("desktop") || lowerUser.contains("folder") || lowerUser.contains("files"))) {
+                // 8. File Organizer / Restore Interception ("clean downloads", "organise downloads", "restore downloads", "undu clean", "put files back", "set it back like it was")
+                else if (((lowerUser.contains("clean") || lowerUser.contains("organi") || lowerUser.contains("tidy") || lowerUser.contains("sort"))
+                                && (lowerUser.contains("download") || lowerUser.contains("desktop") || lowerUser.contains("folder") || lowerUser.contains("file")))
+                        || lowerUser.contains("restore") || lowerUser.contains("undo") || lowerUser.contains("undu") || lowerUser.contains("revert")
+                        || lowerUser.contains("unorgani") || lowerUser.contains("put back") || lowerUser.contains("set it back")
+                        || lowerUser.contains("back like it was") || lowerUser.contains("like it was before") || lowerUser.contains("back to how it was")
+                        || lowerUser.contains("back to same")) {
                     log.info("[Orchestrator] Fulfilling File Organizer/Restore request: '{}'", userText);
                     java.util.Optional<com.jarvis.tools.JarvisTool> orgTool = toolRegistry.getTool("file_organizer");
                     if (orgTool.isPresent()) {
                         String target = lowerUser.contains("desktop") ? "desktop" : "downloads";
-                        String action = (lowerUser.contains("restore") || lowerUser.contains("undo") || lowerUser.contains("revert")
-                                || lowerUser.contains("unorganize") || lowerUser.contains("put back") || lowerUser.contains("back to same")
-                                || lowerUser.contains("back to how") || lowerUser.contains("bring back")) ? "restore" : "organize";
+                        boolean isRestoreAction = lowerUser.contains("restore") || lowerUser.contains("undo") || lowerUser.contains("undu")
+                                || lowerUser.contains("revert") || lowerUser.contains("unorgani") || lowerUser.contains("put back")
+                                || lowerUser.contains("set it back") || lowerUser.contains("back like") || lowerUser.contains("before")
+                                || lowerUser.contains("back to how") || lowerUser.contains("back to same");
+                        String action = isRestoreAction ? "restore" : "organize";
                         com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(orgTool.get(), Map.of("target_folder", target, "action", action), conversationId, null);
                         if (res.isSuccess()) {
                             callback.onToolCall("file_organizer", "OK", res);
