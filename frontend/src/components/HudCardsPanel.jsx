@@ -5,6 +5,8 @@ export function HudCardsPanel({ hudCards = [], connectionStatus, timers = [], on
   const modules = [
     { name: 'PROTOCOLS',    id: 'ironman_protocol', active: hudCards.some(c => c.tool === 'ironman_protocol') },
     { name: 'MEMORY VAULT', id: 'clipboard_memory', active: hudCards.some(c => c.tool === 'clipboard_memory') },
+    { name: 'SCREENSHOT',   id: 'take_screenshot',  active: hudCards.some(c => c.tool === 'take_screenshot') },
+    { name: 'FILE CLEANER', id: 'file_organizer',   active: hudCards.some(c => c.tool === 'file_organizer') },
     { name: 'VISION AI',    id: 'screen_vision',    active: hudCards.some(c => c.tool === 'screen_vision') },
     { name: 'SYS CONTROL',  id: 'system_control',   active: hudCards.some(c => c.tool === 'system_control') },
     { name: 'BLUEPRINTS',   id: 'generate_image',   active: hudCards.some(c => c.type === 'image' || c.tool === 'generate_image') },
@@ -207,6 +209,66 @@ function HudCard({ card }) {
       <div className="hud-card">
         <span className="card-label">🔊 SYSTEM CONTROL</span>
         <div className="card-text">{card.summary}</div>
+      </div>
+    );
+  }
+
+  if (card.tool === 'take_screenshot') {
+    return (
+      <div className="hud-card screenshot-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span className="card-label">📸 SCREENSHOT CAPTURED</span>
+          <span className="badge" style={{ fontSize: 9, background: 'rgba(0, 255, 180, 0.2)', color: 'var(--c-glow)' }}>SAVED</span>
+        </div>
+        {card.url && (
+          <div
+            className="screenshot-img-wrapper"
+            style={{ margin: '8px 0', borderRadius: 4, overflow: 'hidden', border: '1px solid var(--c-border)', cursor: 'pointer' }}
+            onClick={() => window.open(card.url, '_blank')}
+            title="Click to view full screenshot"
+          >
+            <img src={card.url} alt="Screenshot preview" style={{ width: '100%', maxHeight: 130, objectFit: 'cover', display: 'block' }} />
+          </div>
+        )}
+        <div className="card-text" style={{ fontSize: 11, wordBreak: 'break-all', marginTop: 4 }}>
+          <strong>Location:</strong> {card.filePath || card.destination || 'Desktop'}
+        </div>
+        <div style={{ display: 'flex', gap: 6, marginTop: 6, fontSize: 10, color: 'var(--c-glow)' }}>
+          <span>📋 Copied to Clipboard (`Ctrl+V`)</span>
+        </div>
+      </div>
+    );
+  }
+
+  if (card.tool === 'file_organizer') {
+    const breakdown = card.breakdown || {};
+    const categories = Object.entries(breakdown);
+    return (
+      <div className="hud-card organizer-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span className="card-label">📁 FILE ORGANIZER</span>
+          <span className="badge" style={{ fontSize: 9, background: 'rgba(0, 220, 255, 0.2)', color: 'var(--c-bright)' }}>
+            {card.moved != null ? `${card.moved} MOVED` : 'CLEANED'}
+          </span>
+        </div>
+        <div className="card-text" style={{ marginTop: 6 }}>
+          {categories.length > 0 ? (
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '4px 8px', fontSize: 11, margin: '6px 0' }}>
+              {categories.map(([cat, count]) => (
+                <div key={cat} style={{ background: 'rgba(255,255,255,0.04)', padding: '3px 6px', borderRadius: 3, border: '1px solid rgba(255,255,255,0.06)' }}>
+                  <span style={{ color: 'var(--c-mid)', fontSize: 10 }}>{cat}:</span> <strong style={{ color: 'var(--c-bright)' }}>{count}</strong>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: 11, color: 'var(--c-mid)', margin: '4px 0' }}>
+              All loose files are neatly organized in subfolders.
+            </div>
+          )}
+          <div style={{ fontSize: 10, color: 'var(--c-dim)', marginTop: 4, wordBreak: 'break-all' }}>
+            Target: {card.directory || 'Downloads'}
+          </div>
+        </div>
       </div>
     );
   }

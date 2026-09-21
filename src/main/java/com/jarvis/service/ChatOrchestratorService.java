@@ -215,7 +215,36 @@ public class ChatOrchestratorService {
                         }
                     }
                 }
-                // 7. Screen Vision Interception ("look at my screen", "see my screen", "what's on my screen")
+                // 7. Screenshot Capture Interception ("screenshot", "take screenshot", "click screenshot", "save screenshot", "screen capture")
+                else if (lowerUser.contains("screenshot") || lowerUser.contains("screen shot")
+                        || ((lowerUser.contains("take") || lowerUser.contains("click") || lowerUser.contains("capture") || lowerUser.contains("save") || lowerUser.contains("grab") || lowerUser.contains("snap"))
+                            && (lowerUser.contains("screen") || lowerUser.contains("display")))) {
+                    log.info("[Orchestrator] Fulfilling Screenshot request: '{}'", userText);
+                    java.util.Optional<com.jarvis.tools.JarvisTool> shotTool = toolRegistry.getTool("take_screenshot");
+                    if (shotTool.isPresent()) {
+                        String dest = lowerUser.contains("picture") ? "pictures" : "desktop";
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(shotTool.get(), Map.of("destination", dest), conversationId, null);
+                        if (res.isSuccess()) {
+                            callback.onToolCall("take_screenshot", "OK", res);
+                            finalText = res.getSummary();
+                        }
+                    }
+                }
+                // 8. File Organizer Interception ("clean downloads", "organize downloads", "clean my downloads folder", "organize desktop", "tidy up downloads")
+                else if ((lowerUser.contains("clean") || lowerUser.contains("organize") || lowerUser.contains("tidy") || lowerUser.contains("sort"))
+                        && (lowerUser.contains("download") || lowerUser.contains("downloads") || lowerUser.contains("desktop") || lowerUser.contains("folder") || lowerUser.contains("files"))) {
+                    log.info("[Orchestrator] Fulfilling File Organizer request: '{}'", userText);
+                    java.util.Optional<com.jarvis.tools.JarvisTool> orgTool = toolRegistry.getTool("file_organizer");
+                    if (orgTool.isPresent()) {
+                        String target = lowerUser.contains("desktop") ? "desktop" : "downloads";
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(orgTool.get(), Map.of("target_folder", target), conversationId, null);
+                        if (res.isSuccess()) {
+                            callback.onToolCall("file_organizer", "OK", res);
+                            finalText = res.getSummary();
+                        }
+                    }
+                }
+                // 9. Screen Vision Interception ("look at my screen", "see my screen", "what's on my screen")
                 else if (lowerUser.contains("screen") && (lowerUser.contains("look") || lowerUser.contains("see")
                         || lowerUser.contains("watch") || lowerUser.contains("inspect") || lowerUser.contains("read")
                         || lowerUser.contains("check") || lowerUser.contains("debug") || lowerUser.contains("what") || lowerUser.contains("view"))) {
@@ -353,11 +382,11 @@ public class ChatOrchestratorService {
                             .build();
                     messageRepo.save(toolMsg);
 
-                    // If tool is screen_vision and succeeded, return direct visual reply immediately
-                    if ("screen_vision".equals(toolCall.getName()) && result.isSuccess()) {
-                        String visionReply = result.getSummary();
-                        persistAssistantMessage(conversationId, visionReply, null);
-                        callback.onFinalReply(visionReply);
+                    // If tool is screen_vision, take_screenshot, or file_organizer and succeeded, return direct reply immediately
+                    if (("screen_vision".equals(toolCall.getName()) || "take_screenshot".equals(toolCall.getName()) || "file_organizer".equals(toolCall.getName())) && result.isSuccess()) {
+                        String directReply = result.getSummary();
+                        persistAssistantMessage(conversationId, directReply, null);
+                        callback.onFinalReply(directReply);
                         return;
                     }
 
@@ -400,7 +429,9 @@ public class ChatOrchestratorService {
             sysPrompt = "You are Jarvis, an advanced AI personal assistant for a holographic desktop interface.";
         }
         sysPrompt += "\n\nCRITICAL DIRECTIVES:\n"
-                + "- You are running locally on the user's computer and have real tools to launch desktop applications, control Windows hardware, capture the screen, manage timers, search the web, check weather, and trigger UI effects.\n"
+                + "- You are running locally on the user's computer and have real tools to launch desktop applications, control Windows hardware, capture screenshots, organize files, manage timers, search the web, check weather, and trigger UI effects.\n"
+                + "- Available tool: 'take_screenshot' captures high-resolution screenshots of the screen, saves them directly as PNG files to Desktop or Pictures, copies them to clipboard for instant Ctrl+V, and displays a preview card in HUD. Use whenever user asks to take, click, capture, or save a screenshot.\n"
+                + "- Available tool: 'file_organizer' cleans and organizes loose files in Windows Downloads or Desktop folders into categorized subfolders (PDFs & Documents, Images, Installers, Archives, Media, Code). Use whenever user asks to clean, organize, tidy, or sort downloads or desktop.\n"
                 + "- Available tool: 'ironman_protocol' executes tactical protocols: 'house_party' (music, volume 80%, crimson theme), 'stealth_mode' (mute, dark theme, open editor), 'morning_briefing' (status, weather, battery), 'combat_ready' (gold theme).\n"
                 + "- Available tool: 'clipboard_memory' reads or writes the Windows clipboard, and saves or recalls persistent facts, reminders, links, and credentials from your MongoDB memory vault.\n"
                 + "- Available tool: 'generate_image' projects holographic AI blueprints, schematics, and artwork in the HUD panel.\n"
@@ -408,7 +439,7 @@ public class ChatOrchestratorService {
                 + "- Available tool: 'system_control' adjusts Windows master volume (e.g. action='volume_set' value=50, 'mute', 'volume_up', 'volume_down'), controls media ('media_play_pause', 'media_next'), and locks workstation ('lock_pc').\n"
                 + "- Available tool: 'screen_vision' captures the desktop screen and uses Gemini Vision to inspect code, errors, or visual content when asked 'look at my screen' or 'what is on my screen'.\n"
                 + "- Available tool: 'manage_timer' sets countdown timers with visual HUD countdown cards (e.g. 'set a timer for 10 minutes').\n"
-                + "- NEVER claim that you do not have direct access or capability to control the PC, open apps, or see the screen. ALWAYS invoke the appropriate tool.\n"
+                + "- NEVER claim that you do not have direct access or capability to control the PC, open apps, organize files, or take screenshots. ALWAYS invoke the appropriate tool.\n"
                 + "- Always address the user respectfully as 'sir'.";
         messages.add(Map.of("role", "system", "content", sysPrompt));
 
