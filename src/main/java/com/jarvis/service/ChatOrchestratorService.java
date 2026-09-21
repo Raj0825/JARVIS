@@ -230,14 +230,19 @@ public class ChatOrchestratorService {
                         }
                     }
                 }
-                // 8. File Organizer Interception ("clean downloads", "organize downloads", "clean my downloads folder", "organize desktop", "tidy up downloads")
-                else if ((lowerUser.contains("clean") || lowerUser.contains("organize") || lowerUser.contains("tidy") || lowerUser.contains("sort"))
+                // 8. File Organizer / Restore Interception ("clean downloads", "organize downloads", "restore downloads", "undo clean", "put files back")
+                else if ((lowerUser.contains("clean") || lowerUser.contains("organize") || lowerUser.contains("tidy") || lowerUser.contains("sort")
+                        || lowerUser.contains("restore") || lowerUser.contains("undo") || lowerUser.contains("revert") || lowerUser.contains("unorganize")
+                        || lowerUser.contains("put back") || lowerUser.contains("back to same") || lowerUser.contains("back to how") || lowerUser.contains("bring back"))
                         && (lowerUser.contains("download") || lowerUser.contains("downloads") || lowerUser.contains("desktop") || lowerUser.contains("folder") || lowerUser.contains("files"))) {
-                    log.info("[Orchestrator] Fulfilling File Organizer request: '{}'", userText);
+                    log.info("[Orchestrator] Fulfilling File Organizer/Restore request: '{}'", userText);
                     java.util.Optional<com.jarvis.tools.JarvisTool> orgTool = toolRegistry.getTool("file_organizer");
                     if (orgTool.isPresent()) {
                         String target = lowerUser.contains("desktop") ? "desktop" : "downloads";
-                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(orgTool.get(), Map.of("target_folder", target), conversationId, null);
+                        String action = (lowerUser.contains("restore") || lowerUser.contains("undo") || lowerUser.contains("revert")
+                                || lowerUser.contains("unorganize") || lowerUser.contains("put back") || lowerUser.contains("back to same")
+                                || lowerUser.contains("back to how") || lowerUser.contains("bring back")) ? "restore" : "organize";
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(orgTool.get(), Map.of("target_folder", target, "action", action), conversationId, null);
                         if (res.isSuccess()) {
                             callback.onToolCall("file_organizer", "OK", res);
                             finalText = res.getSummary();
@@ -431,7 +436,7 @@ public class ChatOrchestratorService {
         sysPrompt += "\n\nCRITICAL DIRECTIVES:\n"
                 + "- You are running locally on the user's computer and have real tools to launch desktop applications, control Windows hardware, capture screenshots, organize files, manage timers, search the web, check weather, and trigger UI effects.\n"
                 + "- Available tool: 'take_screenshot' captures high-resolution screenshots of the screen, saves them directly as PNG files to Desktop or Pictures, copies them to clipboard for instant Ctrl+V, and displays a preview card in HUD. Use whenever user asks to take, click, capture, or save a screenshot.\n"
-                + "- Available tool: 'file_organizer' cleans and organizes loose files in Windows Downloads or Desktop folders into categorized subfolders (PDFs & Documents, Images, Installers, Archives, Media, Code). Use whenever user asks to clean, organize, tidy, or sort downloads or desktop.\n"
+                + "- Available tool: 'file_organizer' cleans and organizes loose files in Windows Downloads or Desktop folders into categorized subfolders (action='organize'), or undoes/restores all files back to the root folder (action='restore' or 'undo'). Use whenever user asks to clean, organize, tidy, restore, or undo file organization.\n"
                 + "- Available tool: 'ironman_protocol' executes tactical protocols: 'house_party' (music, volume 80%, crimson theme), 'stealth_mode' (mute, dark theme, open editor), 'morning_briefing' (status, weather, battery), 'combat_ready' (gold theme).\n"
                 + "- Available tool: 'clipboard_memory' reads or writes the Windows clipboard, and saves or recalls persistent facts, reminders, links, and credentials from your MongoDB memory vault.\n"
                 + "- Available tool: 'generate_image' projects holographic AI blueprints, schematics, and artwork in the HUD panel.\n"

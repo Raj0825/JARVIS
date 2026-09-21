@@ -346,6 +346,7 @@ export default function App() {
           connectionStatus={wsStatus}
           timers={timers}
           onDismissTimer={id => setTimers(t => t.filter(x => x.id !== id))}
+          onSend={handleSend}
         />
 
         {/* ─── Bottom bar ──────────────────────────────────────────────── */}

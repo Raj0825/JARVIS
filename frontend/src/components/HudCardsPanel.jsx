@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 
 /** Right-hand HUD panel showing tool results as rich cards and active timers */
-export function HudCardsPanel({ hudCards = [], connectionStatus, timers = [], onDismissTimer }) {
+export function HudCardsPanel({ hudCards = [], connectionStatus, timers = [], onDismissTimer, onSend }) {
   const modules = [
     { name: 'PROTOCOLS',    id: 'ironman_protocol', active: hudCards.some(c => c.tool === 'ironman_protocol') },
     { name: 'MEMORY VAULT', id: 'clipboard_memory', active: hudCards.some(c => c.tool === 'clipboard_memory') },
@@ -33,7 +33,7 @@ export function HudCardsPanel({ hudCards = [], connectionStatus, timers = [], on
       )}
 
       {hudCards.slice(-4).reverse().map((card, i) => (
-        <HudCard key={i} card={card} />
+        <HudCard key={i} card={card} onSend={onSend} />
       ))}
 
       {/* Module status */}
@@ -122,7 +122,7 @@ function ActiveTimerCard({ timer, onDismiss }) {
   );
 }
 
-function HudCard({ card }) {
+function HudCard({ card, onSend }) {
   if (card.type === 'search') {
     return (
       <div className="hud-card">
@@ -241,14 +241,15 @@ function HudCard({ card }) {
   }
 
   if (card.tool === 'file_organizer') {
+    const isRestore = card.action === 'restore';
     const breakdown = card.breakdown || {};
     const categories = Object.entries(breakdown);
     return (
       <div className="hud-card organizer-card">
         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-          <span className="card-label">📁 FILE ORGANIZER</span>
-          <span className="badge" style={{ fontSize: 9, background: 'rgba(0, 220, 255, 0.2)', color: 'var(--c-bright)' }}>
-            {card.moved != null ? `${card.moved} MOVED` : 'CLEANED'}
+          <span className="card-label">📁 {isRestore ? 'FILES RESTORED' : 'FILE ORGANIZER'}</span>
+          <span className="badge" style={{ fontSize: 9, background: isRestore ? 'rgba(0, 255, 180, 0.2)' : 'rgba(0, 220, 255, 0.2)', color: isRestore ? 'var(--c-glow)' : 'var(--c-bright)' }}>
+            {isRestore ? `${card.restored || 0} RESTORED` : (card.moved != null ? `${card.moved} MOVED` : 'CLEANED')}
           </span>
         </div>
         <div className="card-text" style={{ marginTop: 6 }}>
@@ -262,11 +263,32 @@ function HudCard({ card }) {
             </div>
           ) : (
             <div style={{ fontSize: 11, color: 'var(--c-mid)', margin: '4px 0' }}>
-              All loose files are neatly organized in subfolders.
+              {isRestore ? 'All files restored to the root folder.' : 'All loose files are neatly organized in subfolders.'}
             </div>
           )}
-          <div style={{ fontSize: 10, color: 'var(--c-dim)', marginTop: 4, wordBreak: 'break-all' }}>
-            Target: {card.directory || 'Downloads'}
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: 8, gap: 6 }}>
+            <div style={{ fontSize: 10, color: 'var(--c-dim)', wordBreak: 'break-all' }}>
+              {card.directory || 'Downloads'}
+            </div>
+            {!isRestore && card.moved > 0 && onSend && (
+              <button
+                onClick={() => onSend('restore downloads folder')}
+                style={{
+                  background: 'rgba(255, 165, 0, 0.15)',
+                  border: '1px solid rgba(255, 165, 0, 0.4)',
+                  color: '#ffa500',
+                  borderRadius: 3,
+                  padding: '2px 8px',
+                  fontSize: 10,
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  whiteSpace: 'nowrap'
+                }}
+                title="Move all categorized files back into the root folder"
+              >
+                ↺ UNDO / RESTORE
+              </button>
+            )}
           </div>
         </div>
       </div>
