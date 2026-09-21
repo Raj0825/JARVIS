@@ -6,6 +6,8 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
+import java.awt.Robot;
+import java.awt.event.KeyEvent;
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -206,24 +208,27 @@ public class AppLauncherTool implements JarvisTool {
         String command = null;
         String matchedLabel = appName;
 
-        // 1. Check for song/music playback request (e.g. "play starboy", "play believer", "play a song")
+        // 1. Check for song/music playback request (e.g. "play starboy", "play believer", "play a song", or key="youtube" with query)
         boolean isMusicPlay = key.startsWith("play ") || key.contains(" play ") || key.contains("play music")
-                || key.contains("play a song") || key.contains("play song") || (key.startsWith("play") && key.length() > 5);
+                || key.contains("play a song") || key.contains("play song") || key.contains("play the song")
+                || (key.startsWith("play") && key.length() > 4)
+                || (key.contains("youtube") && query != null && !query.isBlank());
 
         if (isMusicPlay && !key.contains("playlist") && !key.contains("game")) {
-            String songQuery = key.replaceAll("^(can you |please |jarvis |hey jarvis )?play( a| some)?( song| music)?", "")
-                    .replace("on youtube", "")
-                    .replace("in youtube", "")
-                    .replace("on chrome", "")
-                    .replace("in chrome", "")
-                    .replace("for me", "")
+            String songQuery = (query != null && !query.isBlank()) ? query : key;
+            songQuery = songQuery.replaceAll("(?i)^(can you |please |jarvis |hey jarvis )?play( the| a| some)?( song| music)?", "")
+                    .replaceAll("(?i)on youtube", "")
+                    .replaceAll("(?i)in youtube", "")
+                    .replaceAll("(?i)on chrome", "")
+                    .replaceAll("(?i)in chrome", "")
+                    .replaceAll("(?i)for me", "")
                     .trim();
 
-            if (songQuery.isBlank() || songQuery.equalsIgnoreCase("music") || songQuery.equalsIgnoreCase("song")) {
+            if (songQuery.isBlank() || songQuery.equalsIgnoreCase("music") || songQuery.equalsIgnoreCase("song") || songQuery.equalsIgnoreCase("the song") || songQuery.equalsIgnoreCase("youtube")) {
                 songQuery = "top trending music hits";
             }
 
-            log.info("[AppLauncher] Resolving YouTube video ID for autoplay: '{}'", songQuery);
+            log.info("[AppLauncher] Resolving YouTube video ID for direct autoplay: '{}'", songQuery);
             String videoId = resolveFirstYouTubeVideoId(songQuery);
 
             if (videoId != null && !videoId.isBlank()) {
@@ -239,6 +244,18 @@ public class AppLauncherTool implements JarvisTool {
             try {
                 log.info("[AppLauncher] Executing playback command: {}", command);
                 Runtime.getRuntime().exec(command);
+
+                // Auto-press 'k' / Space after delay to guarantee playback begins in Chrome
+                new Thread(() -> {
+                    try {
+                        Thread.sleep(3000);
+                        Robot robot = new Robot();
+                        robot.keyPress(KeyEvent.VK_K);
+                        robot.keyRelease(KeyEvent.VK_K);
+                        log.info("[AppLauncher] Sent playback start key (k) to YouTube player");
+                    } catch (Exception ignored) {}
+                }).start();
+
                 String summary = "Playing " + matchedLabel + " on YouTube now, sir.";
                 return ToolResult.success(
                         summary,

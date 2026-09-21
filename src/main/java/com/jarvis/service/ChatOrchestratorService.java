@@ -152,6 +152,100 @@ public class ChatOrchestratorService {
                         }
                     }
                 }
+                // 2A. Physical Desktop Actions & Keystrokes ("press enter", "press space", "press send", "send it", "click the button")
+                else if (lowerUser.contains("press enter") || lowerUser.contains("hit enter")
+                        || lowerUser.contains("press space") || lowerUser.contains("hit space")
+                        || lowerUser.contains("press send") || lowerUser.contains("send it") || lowerUser.contains("press compose")
+                        || lowerUser.contains("click button") || lowerUser.contains("click on") || lowerUser.equals("click")
+                        || lowerUser.contains("press tab") || lowerUser.contains("press escape")) {
+                    log.info("[Orchestrator] Fulfilling Desktop Action request: '{}'", userText);
+                    java.util.Optional<com.jarvis.tools.JarvisTool> dtTool = toolRegistry.getTool("desktop_action");
+                    if (dtTool.isPresent()) {
+                        String act = "press_key";
+                        String key = "enter";
+                        String shortcut = null;
+
+                        if (lowerUser.contains("space")) {
+                            key = "space";
+                        } else if (lowerUser.contains("tab")) {
+                            key = "tab";
+                        } else if (lowerUser.contains("escape") || lowerUser.contains("esc")) {
+                            key = "escape";
+                        } else if (lowerUser.contains("send") || lowerUser.contains("send it")) {
+                            act = "send_shortcut";
+                            shortcut = "ctrl+enter";
+                        } else if (lowerUser.contains("compose")) {
+                            act = "press_key";
+                            key = "c";
+                        } else if (lowerUser.contains("click")) {
+                            act = "click_mouse";
+                        }
+
+                        Map<String, Object> p = new java.util.LinkedHashMap<>();
+                        p.put("action", act);
+                        if (key != null) p.put("key", key);
+                        if (shortcut != null) p.put("shortcut", shortcut);
+
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(dtTool.get(), p, conversationId, null);
+                        if (res.isSuccess()) {
+                            callback.onToolCall("desktop_action", "OK", res);
+                            finalText = "Action executed, " + callSign + ". " + res.getSummary();
+                        }
+                    }
+                }
+                // 2B. Gmail & Email Compose / Send ("compose email", "send email to", "write email", "email raj")
+                else if (lowerUser.contains("compose email") || lowerUser.contains("send email") || lowerUser.contains("write email")
+                        || lowerUser.contains("draft email") || lowerUser.contains("compose mail") || lowerUser.contains("send mail")
+                        || (lowerUser.contains("email") && (lowerUser.contains("to ") || lowerUser.contains("send")))) {
+                    log.info("[Orchestrator] Fulfilling Email Compose request: '{}'", userText);
+                    java.util.Optional<com.jarvis.tools.JarvisTool> emailTool = toolRegistry.getTool("compose_email");
+                    if (emailTool.isPresent()) {
+                        Map<String, Object> emailParams = new java.util.LinkedHashMap<>();
+                        java.util.regex.Matcher emailMatcher = java.util.regex.Pattern.compile("([a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,})").matcher(userText);
+                        if (emailMatcher.find()) {
+                            emailParams.put("to", emailMatcher.group(1));
+                        }
+                        if (lowerUser.contains("about ") || lowerUser.contains("regarding ") || lowerUser.contains("subject ")) {
+                            String subj = userText.replaceAll("(?i).*?(about|regarding|subject)\\s+", "").replaceAll("(?i)(saying|body|that).*$", "").trim();
+                            emailParams.put("subject", subj);
+                        }
+                        if (lowerUser.contains("saying ") || lowerUser.contains("body ") || lowerUser.contains("message ")) {
+                            String body = userText.replaceAll("(?i).*?(saying|body|message)\\s+", "").trim();
+                            emailParams.put("body", body);
+                        }
+                        boolean sendNow = lowerUser.contains("send it") || lowerUser.contains("send now") || lowerUser.contains("auto send");
+                        emailParams.put("send_now", sendNow);
+
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(emailTool.get(), emailParams, conversationId, null);
+                        if (res.isSuccess()) {
+                            callback.onToolCall("compose_email", "OK", res);
+                            finalText = res.getSummary();
+                        }
+                    }
+                }
+                // 2C. Direct Music / Song / YouTube Autoplay ("play song", "play believer on youtube", "play music")
+                else if (lowerUser.startsWith("play ") || (lowerUser.contains("play ") && (lowerUser.contains("song") || lowerUser.contains("music") || lowerUser.contains("youtube")))) {
+                    log.info("[Orchestrator] Fulfilling Music Playback request: '{}'", userText);
+                    String songQuery = userText.replaceAll("(?i)^(can you |please |jarvis |hey jarvis )?play( the| a| some)?( song| music)?", "")
+                            .replaceAll("(?i)on youtube", "")
+                            .replaceAll("(?i)in youtube", "")
+                            .replaceAll("(?i)on chrome", "")
+                            .replaceAll("(?i)in chrome", "")
+                            .replaceAll("(?i)for me", "")
+                            .trim();
+                    if (songQuery.isBlank() || songQuery.equalsIgnoreCase("music") || songQuery.equalsIgnoreCase("song") || songQuery.equalsIgnoreCase("the song") || songQuery.equalsIgnoreCase("youtube")) {
+                        songQuery = "top trending music hits";
+                    }
+
+                    java.util.Optional<com.jarvis.tools.JarvisTool> appTool = toolRegistry.getTool("open_application");
+                    if (appTool.isPresent()) {
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(appTool.get(), Map.of("application", "play " + songQuery, "query", songQuery), conversationId, null);
+                        if (res.isSuccess()) {
+                            callback.onToolCall("open_application", "OK", res);
+                            finalText = "Audio stream initialized, " + callSign + ". Playing " + songQuery + " on YouTube now.";
+                        }
+                    }
+                }
                 // 3. Iron Man Protocols ("protocol house party", "party mode", "stealth mode", "morning briefing", "combat ready")
                 else if (lowerUser.contains("protocol") || lowerUser.contains("house party") || lowerUser.contains("party mode")
                         || lowerUser.contains("stealth mode") || lowerUser.contains("morning briefing") || lowerUser.contains("morning protocol")
@@ -496,6 +590,8 @@ public class ChatOrchestratorService {
                 + "- Available tool: 'system_control' adjusts Windows master volume (e.g. action='volume_set' value=50, 'mute', 'volume_up', 'volume_down'), controls media ('media_play_pause', 'media_next'), and locks workstation ('lock_pc').\n"
                 + "- Available tool: 'screen_vision' captures the desktop screen and uses Gemini Vision to inspect code, errors, or visual content when asked 'look at my screen' or 'what is on my screen'.\n"
                 + "- Available tool: 'manage_timer' sets countdown timers with visual HUD countdown cards (e.g. 'set a timer for 10 minutes').\n"
+                + "- Available tool: 'desktop_action' simulates physical keyboard and mouse interactions on Windows: click buttons (action='click_mouse'), press keys (action='press_key', key='enter', 'space', 'tab', 'escape', 'k'), send keyboard shortcuts (action='send_shortcut', shortcut='ctrl+enter' to send email or submit forms, 'alt+tab', 'ctrl+w'), or type text into active applications (action='type_text', text='...').\n"
+                + "- Available tool: 'compose_email' drafts or sends an email via Gmail: opens the Gmail compose window with recipient (to), subject, and pre-written message body, and can automatically press Send (send_now=true).\n"
                 + "- Conversational continuity: remember previous topics and conversational pronouns ('them', 'it', 'undo that', 'put them back').\n"
                 + "- Always address " + userName + " respectfully as '" + callSign + "'.";
         messages.add(Map.of("role", "system", "content", sysPrompt));
