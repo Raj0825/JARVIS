@@ -144,7 +144,92 @@ public class ChatOrchestratorService {
                         }
                     }
                 }
-                // 3. Voice Timer Interception
+                // 3. Iron Man Protocols ("protocol house party", "party mode", "stealth mode", "morning briefing", "combat ready")
+                else if (lowerUser.contains("protocol") || lowerUser.contains("house party") || lowerUser.contains("party mode")
+                        || lowerUser.contains("stealth mode") || lowerUser.contains("morning briefing") || lowerUser.contains("morning protocol")
+                        || lowerUser.contains("combat ready") || lowerUser.contains("flight readiness")) {
+                    log.info("[Orchestrator] Fulfilling Iron Man Protocol request: '{}'", userText);
+                    String proto = "house_party";
+                    if (lowerUser.contains("stealth")) proto = "stealth_mode";
+                    else if (lowerUser.contains("morning")) proto = "morning_briefing";
+                    else if (lowerUser.contains("combat") || lowerUser.contains("flight")) proto = "combat_ready";
+                    else if (lowerUser.contains("lock")) proto = "security_lockdown";
+
+                    java.util.Optional<com.jarvis.tools.JarvisTool> protoTool = toolRegistry.getTool("ironman_protocol");
+                    if (protoTool.isPresent()) {
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(protoTool.get(), Map.of("protocol", proto), conversationId, null);
+                        if (res.isSuccess()) {
+                            callback.onToolCall("ironman_protocol", "OK", res);
+                            finalText = res.getSummary();
+                        }
+                    }
+                }
+                // 4. Clipboard & Memory Vault Interception
+                else if (lowerUser.contains("clipboard") || lowerUser.startsWith("remember ") || lowerUser.contains("remember that ")
+                        || lowerUser.contains("what did i tell you") || lowerUser.contains("recall ") || lowerUser.contains("my memories")) {
+                    log.info("[Orchestrator] Fulfilling Clipboard/Memory request: '{}'", userText);
+                    java.util.Optional<com.jarvis.tools.JarvisTool> clipTool = toolRegistry.getTool("clipboard_memory");
+                    if (clipTool.isPresent()) {
+                        Map<String, Object> clipParams = new java.util.LinkedHashMap<>();
+                        if (lowerUser.contains("clipboard")) {
+                            clipParams.put("action", "read_clipboard");
+                        } else if (lowerUser.startsWith("remember") || lowerUser.contains("remember that")) {
+                            clipParams.put("action", "save_memory");
+                            clipParams.put("text", userText);
+                        } else if (lowerUser.contains("what did i tell you") || lowerUser.contains("recall")) {
+                            clipParams.put("action", "recall_memory");
+                            clipParams.put("topic", userText.replaceAll("(?i)(what did i tell you about|recall|search memory for|remember)", "").trim());
+                        } else {
+                            clipParams.put("action", "list_memories");
+                        }
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(clipTool.get(), clipParams, conversationId, null);
+                        if (res.isSuccess()) {
+                            callback.onToolCall("clipboard_memory", "OK", res);
+                            finalText = res.getSummary();
+                        }
+                    }
+                }
+                // 5. Biometric Face Scan Interception
+                else if (lowerUser.contains("scan my face") || lowerUser.contains("biometric") || lowerUser.contains("face scan")
+                        || lowerUser.contains("security scan") || lowerUser.contains("who am i")) {
+                    log.info("[Orchestrator] Fulfilling Biometric Face Scan: '{}'", userText);
+                    finalText = "Biometric optical sensors engaged. Align your face with the targeting reticle for retinal and facial geometry calibration, Mr. Stark.";
+                    com.jarvis.tools.ToolResult scanResult = com.jarvis.tools.ToolResult.success(
+                            finalText,
+                            Map.of("action", "BIOMETRIC_SCAN"),
+                            Map.of("action", "BIOMETRIC_SCAN")
+                    );
+                    callback.onToolCall("biometric_scan", "OK", scanResult);
+                }
+                // 6. Image / Blueprint Generator Interception
+                else if (lowerUser.contains("generate image") || lowerUser.contains("design blueprint") || lowerUser.contains("draw ")
+                        || lowerUser.contains("schematic") || lowerUser.contains("create an image") || lowerUser.contains("generate an image")) {
+                    log.info("[Orchestrator] Fulfilling Blueprint/Image generation: '{}'", userText);
+                    java.util.Optional<com.jarvis.tools.JarvisTool> imgTool = toolRegistry.getTool("generate_image");
+                    if (imgTool.isPresent()) {
+                        String cleanPrompt = userText.replaceAll("(?i)(generate image of|generate image|create image of|design blueprint of|draw|schematic of)", "").trim();
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(imgTool.get(), Map.of("prompt", cleanPrompt.isBlank() ? userText : cleanPrompt), conversationId, null);
+                        if (res.isSuccess()) {
+                            callback.onToolCall("generate_image", "OK", res);
+                            finalText = res.getSummary();
+                        }
+                    }
+                }
+                // 7. Screen Vision Interception ("look at my screen", "see my screen", "what's on my screen")
+                else if (lowerUser.contains("screen") && (lowerUser.contains("look") || lowerUser.contains("see")
+                        || lowerUser.contains("watch") || lowerUser.contains("inspect") || lowerUser.contains("read")
+                        || lowerUser.contains("check") || lowerUser.contains("debug") || lowerUser.contains("what") || lowerUser.contains("view"))) {
+                    log.info("[Orchestrator] Fulfilling Screen Vision request: '{}'", userText);
+                    java.util.Optional<com.jarvis.tools.JarvisTool> screenTool = toolRegistry.getTool("screen_vision");
+                    if (screenTool.isPresent()) {
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(screenTool.get(), Map.of("question", userText), conversationId, null);
+                        if (res.isSuccess()) {
+                            callback.onToolCall("screen_vision", "OK", res);
+                            finalText = res.getSummary();
+                        }
+                    }
+                }
+                // 8. Voice Timer Interception
                 else if (lowerUser.contains("set a timer") || lowerUser.contains("set timer") || lowerUser.contains("countdown")) {
                     log.info("[Orchestrator] Fulfilling Manage Timer request: '{}'", userText);
                     int secs = 300;
@@ -165,7 +250,7 @@ public class ChatOrchestratorService {
                         }
                     }
                 }
-                // 4. Application / Website / Music Playback Interception
+                // 9. Application / Website / Music Playback Interception
                 else {
                     boolean hasOpenIntent = lowerUser.contains("open ") || lowerUser.contains("launch ") || lowerUser.contains("start ")
                             || lowerUser.contains("go to ") || lowerUser.startsWith("play ") || lowerUser.contains(" play ")
@@ -268,6 +353,14 @@ public class ChatOrchestratorService {
                             .build();
                     messageRepo.save(toolMsg);
 
+                    // If tool is screen_vision and succeeded, return direct visual reply immediately
+                    if ("screen_vision".equals(toolCall.getName()) && result.isSuccess()) {
+                        String visionReply = result.getSummary();
+                        persistAssistantMessage(conversationId, visionReply, null);
+                        callback.onFinalReply(visionReply);
+                        return;
+                    }
+
                     // Add tool result to LLM context
                     llmMessages.add(Map.of(
                             "role", "tool",
@@ -308,6 +401,9 @@ public class ChatOrchestratorService {
         }
         sysPrompt += "\n\nCRITICAL DIRECTIVES:\n"
                 + "- You are running locally on the user's computer and have real tools to launch desktop applications, control Windows hardware, capture the screen, manage timers, search the web, check weather, and trigger UI effects.\n"
+                + "- Available tool: 'ironman_protocol' executes tactical protocols: 'house_party' (music, volume 80%, crimson theme), 'stealth_mode' (mute, dark theme, open editor), 'morning_briefing' (status, weather, battery), 'combat_ready' (gold theme).\n"
+                + "- Available tool: 'clipboard_memory' reads or writes the Windows clipboard, and saves or recalls persistent facts, reminders, links, and credentials from your MongoDB memory vault.\n"
+                + "- Available tool: 'generate_image' projects holographic AI blueprints, schematics, and artwork in the HUD panel.\n"
                 + "- Available tool: 'open_application' launches Windows apps, specific Windows Settings (Bluetooth, Wi-Fi, Sound, Display), File Explorer folders, websites (Instagram Reels, YouTube Shorts, WhatsApp Web), and autoplays songs on YouTube ('play <song>').\n"
                 + "- Available tool: 'system_control' adjusts Windows master volume (e.g. action='volume_set' value=50, 'mute', 'volume_up', 'volume_down'), controls media ('media_play_pause', 'media_next'), and locks workstation ('lock_pc').\n"
                 + "- Available tool: 'screen_vision' captures the desktop screen and uses Gemini Vision to inspect code, errors, or visual content when asked 'look at my screen' or 'what is on my screen'.\n"

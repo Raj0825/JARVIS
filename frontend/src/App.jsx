@@ -8,6 +8,8 @@ import { useJarvisSocket } from './hooks/useJarvisSocket';
 import { useSpeechRecognition } from './hooks/useSpeechRecognition';
 import { useSpeechSynthesis } from './hooks/useSpeechSynthesis';
 import { audioEffects } from './utils/audioEffects';
+import { TelemetryGaugePanel } from './components/TelemetryGaugePanel';
+import { BiometricScannerModal } from './components/BiometricScannerModal';
 
 // ─── State machine ────────────────────────────────────────────────────────
 // idle | listening | thinking | speaking
@@ -30,6 +32,7 @@ export default function App() {
   const [activeEffect, setActiveEffect] = useState(null);
   const [clock, setClock] = useState('');
   const [sessionId] = useState(() => 'JV-' + Math.floor(1000 + Math.random() * 9000));
+  const [showBiometrics, setShowBiometrics] = useState(false);
 
   const { speak, stopSpeaking, isSpeakingRef } = useSpeechSynthesis();
 
@@ -70,6 +73,10 @@ export default function App() {
         endTime: Date.now() + (action.duration || 300) * 1000,
       };
       setTimers(prev => [...prev, newTimer]);
+      audioEffects.activate();
+    }
+    if (action.action === 'BIOMETRIC_SCAN') {
+      setShowBiometrics(true);
       audioEffects.activate();
     }
     if (action.action === 'SET_REACTOR') {
@@ -282,6 +289,25 @@ export default function App() {
             >
               {wakeWordMode ? '🎙 HANDS-FREE: ON' : '🎙 HANDS-FREE: OFF'}
             </button>
+            <button
+              className="btn-icon"
+              id="btn-biometrics"
+              title="Biometric Security Scan"
+              onClick={() => setShowBiometrics(true)}
+              style={{
+                border: '1px solid var(--c-line)',
+                color: 'var(--c-bright)',
+                fontSize: 11,
+                width: 'auto',
+                padding: '0 10px',
+                borderRadius: 2,
+                letterSpacing: 1,
+                fontFamily: 'Rajdhani',
+                fontWeight: 700,
+              }}
+            >
+              👁 BIOMETRIC SCAN
+            </button>
             <button className="btn-icon" id="btn-settings" title="Settings" onClick={() => setShowSettings(true)}>⚙</button>
             <button className="btn-icon" id="btn-new-conv" title="New conversation" onClick={() => {
               newConversation();
@@ -308,9 +334,10 @@ export default function App() {
             {isThinking ? thinkingStatus :
              isListening ? 'Listening — speak now...' :
              reactorState === 'speaking' ? 'Speaking — say something to interrupt' :
-             wakeWordMode ? 'Hands-Free Active — Say "Hello Jarvis" or "Hey Jarvis"' :
-             'Click [🎙 HANDS-FREE: ON] above, or tap mic to speak'}
+              wakeWordMode ? 'Hands-Free Active — Say "Hello Jarvis" or "Hey Jarvis"' :
+              'Click [🎙 HANDS-FREE: ON] above, or tap mic to speak'}
           </div>
+          <TelemetryGaugePanel />
         </div>
 
         {/* ─── Right panel ─────────────────────────────────────────────── */}
@@ -367,6 +394,17 @@ export default function App() {
           }}
         />
       )}
+
+      {/* ─── Biometric Face Scanner Modal ────────────────────────────── */}
+      <BiometricScannerModal
+        isOpen={showBiometrics}
+        onClose={() => setShowBiometrics(false)}
+        onVerified={() => {
+          setShowBiometrics(false);
+          addMessage('assistant', 'Biometric identity verified: Anthony E. Stark. Security clearance Level 10 Executive confirmed. Welcome back, Mr. Stark.');
+          speak('Biometric identity verified. Welcome back, Mr. Stark.');
+        }}
+      />
     </>
   );
 }

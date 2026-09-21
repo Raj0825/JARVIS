@@ -70,7 +70,7 @@ export function SettingsModal({ onClose, initialSettings }) {
     MOCK: 'jarvis-mock-v1',
     OPENAI: 'gpt-4o-mini',
     ANTHROPIC: 'claude-3-5-haiku-20241022',
-    GEMINI: 'gemini-3.5-flash-lite',
+    GEMINI: 'gemini-2.0-flash',
     OLLAMA: 'llama3.1',
   };
 
@@ -167,6 +167,73 @@ export function SettingsModal({ onClose, initialSettings }) {
         {/* ─── Voice tab ────────────────────────────────────────────────────── */}
         {tab === 'voice' && (
           <>
+            <div className="form-group" style={{ background: 'rgba(var(--c-glow-rgb), 0.06)', border: '1px dashed var(--c-line)', padding: 10, borderRadius: 4 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                <div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: 'var(--c-bright)' }}>⚡ PAUL BETTANY / JARVIS PRESET</div>
+                  <div style={{ fontSize: 10, color: 'var(--c-mid)' }}>British neural inflection, 0.88 pitch, calm cadence</div>
+                </div>
+                <div style={{ display: 'flex', gap: 6 }}>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      update('sttLanguage', 'en-US');
+                      update('ttsPitch', 0.85);
+                      update('ttsRate', 1.0);
+                      update('ttsVoice', 'default');
+                    }}
+                    style={{
+                      background: 'transparent',
+                      color: 'var(--c-mid)',
+                      border: '1px solid var(--c-line)',
+                      fontFamily: 'Rajdhani',
+                      fontWeight: 600,
+                      fontSize: 10,
+                      letterSpacing: '1px',
+                      padding: '4px 8px',
+                      cursor: 'pointer',
+                      borderRadius: 2,
+                    }}
+                  >
+                    ORIGINAL VOICE
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => {
+                      update('sttLanguage', 'en-GB');
+                      update('ttsPitch', 0.88);
+                      update('ttsRate', 1.02);
+                      update('ttsVoice', 'jarvis');
+                    }}
+                    style={{
+                      background: 'var(--c-glow)',
+                      color: '#000',
+                      border: 'none',
+                      fontFamily: 'Rajdhani',
+                      fontWeight: 700,
+                      fontSize: 11,
+                      letterSpacing: '1px',
+                      padding: '6px 12px',
+                      cursor: 'pointer',
+                      borderRadius: 2,
+                    }}
+                  >
+                    APPLY PRESET
+                  </button>
+                </div>
+              </div>
+            </div>
+            <div className="form-group">
+              <label className="form-label">TTS Voice</label>
+              <select className="form-select" value={settings.ttsVoice || 'default'}
+                onChange={e => update('ttsVoice', e.target.value)}>
+                <option value="default">Default System Voice (Original)</option>
+                <option value="jarvis">British JARVIS (Paul Bettany)</option>
+                {window.speechSynthesis?.getVoices()?.map(v => (
+                  <option key={v.name} value={v.name}>{v.name} ({v.lang})</option>
+                ))}
+              </select>
+            </div>
             <div className="form-group">
               <label className="form-label">Speech Language</label>
               <select className="form-select" value={settings.sttLanguage}

@@ -3,13 +3,13 @@ import { useEffect, useState } from 'react';
 /** Right-hand HUD panel showing tool results as rich cards and active timers */
 export function HudCardsPanel({ hudCards = [], connectionStatus, timers = [], onDismissTimer }) {
   const modules = [
-    { name: 'WEB SEARCH',   id: 'web_search',    active: hudCards.some(c => c.type === 'search') },
-    { name: 'IMAGE GEN',    id: 'generate_image', active: hudCards.some(c => c.type === 'image') },
-    { name: 'UI CONTROL',   id: 'ui',             active: hudCards.some(c => c.type === 'ui') },
-    { name: 'SYS MONITOR',  id: 'system_stats',   active: hudCards.some(c => c.type === 'system_stats') },
-    { name: 'SYS CONTROL',  id: 'system_control', active: hudCards.some(c => c.tool === 'system_control') },
-    { name: 'VISION AI',    id: 'screen_vision',  active: hudCards.some(c => c.tool === 'screen_vision') },
-    { name: 'VOICE I/O',    id: 'voice',          active: connectionStatus === 'connected', always: true },
+    { name: 'PROTOCOLS',    id: 'ironman_protocol', active: hudCards.some(c => c.tool === 'ironman_protocol') },
+    { name: 'MEMORY VAULT', id: 'clipboard_memory', active: hudCards.some(c => c.tool === 'clipboard_memory') },
+    { name: 'VISION AI',    id: 'screen_vision',    active: hudCards.some(c => c.tool === 'screen_vision') },
+    { name: 'SYS CONTROL',  id: 'system_control',   active: hudCards.some(c => c.tool === 'system_control') },
+    { name: 'BLUEPRINTS',   id: 'generate_image',   active: hudCards.some(c => c.type === 'image' || c.tool === 'generate_image') },
+    { name: 'WEB SEARCH',   id: 'web_search',       active: hudCards.some(c => c.type === 'search') },
+    { name: 'VOICE I/O',    id: 'voice',            active: connectionStatus === 'connected', always: true },
   ];
 
   return (
@@ -136,11 +136,43 @@ function HudCard({ card }) {
     );
   }
 
-  if (card.type === 'image') {
+  if (card.type === 'image' || card.tool === 'generate_image') {
+    return (
+      <div className="hud-card blueprint-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span className="card-label">🔬 HOLOGRAPHIC BLUEPRINT</span>
+          <span className="badge" style={{ fontSize: 9 }}>FLUX AI</span>
+        </div>
+        <div className="blueprint-prompt">"{card.prompt}"</div>
+        <div className="blueprint-img-wrapper" onClick={() => window.open(card.url, '_blank')}>
+          <img className="hud-image blueprint-glow" src={card.url} alt={card.prompt} loading="lazy" />
+          <div className="blueprint-overlay"><span>🔍 CLICK TO EXPAND 8K</span></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (card.tool === 'ironman_protocol') {
+    return (
+      <div className="hud-card protocol-card">
+        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+          <span className="card-label">🛡️ IRON MAN PROTOCOL</span>
+          <span className="badge-protocol">{card.protocol?.toUpperCase() || 'TACTICAL'}</span>
+        </div>
+        <div className="card-text" style={{ marginTop: 6, fontWeight: 500 }}>
+          {card.summary}
+        </div>
+      </div>
+    );
+  }
+
+  if (card.tool === 'clipboard_memory') {
     return (
       <div className="hud-card">
-        <span className="card-label">🖼️ IMAGE — {card.prompt?.substring(0, 30)}</span>
-        <img className="hud-image" src={card.url} alt={card.prompt} loading="lazy" />
+        <span className="card-label">📋 CLIPBOARD & MEMORY VAULT</span>
+        <div className="card-text" style={{ whiteSpace: 'pre-wrap', maxHeight: 160, overflowY: 'auto' }}>
+          {card.summary}
+        </div>
       </div>
     );
   }

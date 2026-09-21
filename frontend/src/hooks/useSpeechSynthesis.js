@@ -19,10 +19,18 @@ export function useSpeechSynthesis() {
     utter.pitch = pitch;
     utter.rate = rate;
 
-    if (voice) {
+    if (voice && voice !== 'default') {
       const voices = window.speechSynthesis.getVoices();
-      const found = voices.find(v => v.name === voice || v.voiceURI === voice);
-      if (found) utter.voice = found;
+      if (voice === 'jarvis') {
+        const jarvisVoice = voices.find(v =>
+          (v.lang?.startsWith('en-GB') || v.lang?.startsWith('en_GB')) &&
+          (v.name.toLowerCase().includes('male') || v.name.toLowerCase().includes('george') || v.name.toLowerCase().includes('ryan') || v.name.toLowerCase().includes('libby'))
+        ) || voices.find(v => v.lang?.startsWith('en-GB') || v.lang?.startsWith('en_GB'));
+        if (jarvisVoice) utter.voice = jarvisVoice;
+      } else {
+        const found = voices.find(v => v.name === voice || v.voiceURI === voice);
+        if (found) utter.voice = found;
+      }
     }
 
     utter.onstart = () => { isSpeakingRef.current = true; setIsSpeaking(true); };

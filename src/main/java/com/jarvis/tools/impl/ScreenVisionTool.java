@@ -66,6 +66,9 @@ public class ScreenVisionTool implements JarvisTool {
 
     @Override
     public ToolResult execute(Map<String, Object> params) {
+        if (params == null) {
+            params = Map.of();
+        }
         String question = (String) params.get("question");
         if (question == null || question.isBlank()) {
             question = (String) params.get("prompt");
@@ -76,14 +79,55 @@ public class ScreenVisionTool implements JarvisTool {
 
         try {
             log.info("[ScreenVision] Capturing desktop screen...");
-            // 1. Capture screen using Java AWT Robot
-            Toolkit toolkit = Toolkit.getDefaultToolkit();
-            Dimension screenSize = toolkit.getScreenSize();
-            Rectangle screenRect = new Rectangle(screenSize);
-            Robot robot = new Robot();
-            BufferedImage capture = robot.createScreenCapture(screenRect);
+            BufferedImage capture = null;
 
-            // 2. Scale down if huge (e.g. 4K) to reduce latency and token size
+            // 1. Try Java AWT Robot (ensure headless mode is disabled)
+            try {
+                System.setProperty("java.awt.headless", "false");
+                Toolkit toolkit = Toolkit.getDefaultToolkit();
+                Dimension screenSize = toolkit.getScreenSize();
+                Rectangle screenRect = new Rectangle(screenSize);
+                Robot robot = new Robot();
+                capture = robot.createScreenCapture(screenRect);
+                log.info("[ScreenVision] Captured screen via Java AWT Robot ({}x{})", capture.getWidth(), capture.getHeight());
+            } catch (Throwable t) {
+                log.warn("[ScreenVision] AWT Robot capture failed ({}). Attempting PowerShell capture...", t.getMessage());
+            }
+
+            // 2. PowerShell fallback if Robot failed
+            if (capture == null) {
+                try {
+                    java.nio.file.Path tempJpg = java.nio.file.Files.createTempFile("jarvis_screen_", ".jpg");
+                    java.nio.file.Path scriptFile = java.nio.file.Files.createTempFile("jarvis_cap_", ".ps1");
+                    String outPath = tempJpg.toAbsolutePath().toString().replace("\\", "/");
+                    String script = "Add-Type -AssemblyName System.Windows.Forms\n" +
+                            "Add-Type -AssemblyName System.Drawing\n" +
+                            "$s = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds\n" +
+                            "$b = New-Object System.Drawing.Bitmap $s.Width, $s.Height\n" +
+                            "$g = [System.Drawing.Graphics]::FromImage($b)\n" +
+                            "$g.CopyFromScreen($s.Location, [System.Drawing.Point]::Empty, $s.Size)\n" +
+                            "$b.Save('" + outPath + "', [System.Drawing.Imaging.ImageFormat]::Jpeg)\n" +
+                            "$b.Dispose()\n" +
+                            "$g.Dispose()\n";
+                    java.nio.file.Files.writeString(scriptFile, script);
+                    Process p = new ProcessBuilder("powershell.exe", "-ExecutionPolicy", "Bypass", "-File", scriptFile.toAbsolutePath().toString()).start();
+                    p.waitFor(6, java.util.concurrent.TimeUnit.SECONDS);
+                    java.nio.file.Files.deleteIfExists(scriptFile);
+                    if (java.nio.file.Files.exists(tempJpg) && java.nio.file.Files.size(tempJpg) > 500) {
+                        capture = ImageIO.read(tempJpg.toFile());
+                        java.nio.file.Files.deleteIfExists(tempJpg);
+                        log.info("[ScreenVision] Captured screen via PowerShell fallback");
+                    }
+                } catch (Exception ex) {
+                    log.warn("[ScreenVision] PowerShell capture failed: {}", ex.getMessage());
+                }
+            }
+
+            if (capture == null) {
+                return ToolResult.failure("Unable to capture screen. Please verify display is active and unlocked.");
+            }
+
+            // 3. Scale down if huge (e.g. 4K) to reduce latency and token size
             int targetWidth = Math.min(1920, capture.getWidth());
             int targetHeight = (int) ((double) capture.getHeight() * ((double) targetWidth / capture.getWidth()));
             BufferedImage scaled = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);
@@ -92,15 +136,18 @@ public class ScreenVisionTool implements JarvisTool {
             g.drawImage(capture, 0, 0, targetWidth, targetHeight, null);
             g.dispose();
 
-            // 3. Compress to JPEG
+            // 4. Compress to JPEG
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             ImageIO.write(scaled, "jpeg", baos);
             byte[] imageBytes = baos.toByteArray();
             String base64Image = Base64.getEncoder().encodeToString(imageBytes);
             log.info("[ScreenVision] Screen captured: {}x{}, {} KB. Sending to Gemini Vision...", targetWidth, targetHeight, imageBytes.length / 1024);
 
-            // 4. Retrieve Gemini API key and model from settings
+            // 5. Retrieve Gemini API key and model from settings
             JarvisSettings settings = settingsService.getSettings("default");
+            if (settings == null) {
+                return ToolResult.failure("Could not load user settings.");
+            }
             String apiKey = settings.getApiKey();
             if (apiKey == null || apiKey.isBlank()) {
                 return ToolResult.failure("Gemini API key is not configured in Settings.");
@@ -108,10 +155,12 @@ public class ScreenVisionTool implements JarvisTool {
 
             String model = settings.getModel();
             if (model == null || model.isBlank() || model.contains("mock")) {
-                model = "gemini-3.5-flash-lite";
+                model = "gemini-2.0-flash";
+            } else if (model.startsWith("models/")) {
+                model = model.substring(7);
             }
 
-            // 5. Build Gemini Multimodal Payload
+            // 6. Build Gemini Multimodal Payload
             ObjectNode body = mapper.createObjectNode();
             ArrayNode contents = body.putArray("contents");
             ObjectNode turn = contents.addObject();
@@ -144,6 +193,21 @@ public class ScreenVisionTool implements JarvisTool {
 
             if (response.statusCode() >= 400) {
                 log.error("[ScreenVision] Gemini Vision error {}: {}", response.statusCode(), response.body());
+                // If model failed with 400 on custom model, try fast fallback with gemini-2.0-flash
+                if (!"gemini-2.0-flash".equals(model)) {
+                    log.info("[ScreenVision] Retrying with gemini-2.0-flash fallback...");
+                    String fallbackUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey;
+                    HttpRequest fallbackReq = HttpRequest.newBuilder()
+                            .uri(URI.create(fallbackUrl))
+                            .header("Content-Type", "application/json")
+                            .timeout(Duration.ofSeconds(25))
+                            .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+                            .build();
+                    response = client.send(fallbackReq, HttpResponse.BodyHandlers.ofString());
+                }
+            }
+
+            if (response.statusCode() >= 400) {
                 return ToolResult.failure("Gemini Vision returned error " + response.statusCode());
             }
 
@@ -158,8 +222,9 @@ public class ScreenVisionTool implements JarvisTool {
             );
 
         } catch (Exception e) {
-            log.error("[ScreenVision] Failed to analyze screen: {}", e.getMessage(), e);
-            return ToolResult.failure("Screen capture failed: " + e.getMessage());
+            String err = (e.getMessage() != null && !e.getMessage().isBlank()) ? e.getMessage() : e.getClass().getSimpleName();
+            log.error("[ScreenVision] Failed to analyze screen: {}", err, e);
+            return ToolResult.failure("Screen analysis failed: " + err);
         }
     }
 

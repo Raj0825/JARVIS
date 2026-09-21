@@ -82,15 +82,19 @@ public class GeminiClient implements LlmClient {
                                 String argsJson = fn != null ? (String) fn.get("arguments") : "{}";
                                 String id = (String) tc.get("id");
                                 ObjectNode part = mapper.createObjectNode();
-                                if (id != null && id.startsWith("ts:")) {
-                                    part.put("thought_signature", id.substring(3));
-                                }
                                 ObjectNode fc = mapper.createObjectNode();
                                 fc.put("name", name);
                                 try {
                                     fc.set("args", mapper.readTree(argsJson != null && !argsJson.isBlank() ? argsJson : "{}"));
                                 } catch (Exception ignored) {
                                     fc.set("args", mapper.createObjectNode());
+                                }
+                                if (id != null && id.startsWith("ts:")) {
+                                    String sig = id.substring(3);
+                                    part.put("thought_signature", sig);
+                                    part.put("thoughtSignature", sig);
+                                    fc.put("thought_signature", sig);
+                                    fc.put("thoughtSignature", sig);
                                 }
                                 part.set("functionCall", fc);
                                 parts.add(part);
@@ -161,7 +165,7 @@ public class GeminiClient implements LlmClient {
             genConfig.put("temperature", temperature);
             body.set("generationConfig", genConfig);
 
-            String cleanModel = (model != null && !model.isBlank()) ? model.trim() : "gemini-3.5-flash-lite";
+            String cleanModel = (model != null && !model.isBlank()) ? model.trim() : "gemini-2.0-flash";
             if (cleanModel.startsWith("models/")) {
                 cleanModel = cleanModel.substring(7);
             }
@@ -176,44 +180,88 @@ public class GeminiClient implements LlmClient {
                 log.info("[Gemini] Response received: HTTP {}", response.code());
                 if (!response.isSuccessful() || response.body() == null) {
                     String errBody = response.body() != null ? response.body().string() : "(no body)";
+                    // Transparent self-healing fallback for models with strict thought_signature validation
+                    if (response.code() == 400 && errBody.contains("thought_signature") && !"gemini-2.0-flash".equals(cleanModel)) {
+                        log.warn("[Gemini] Model '{}' rejected history with thought_signature error. Retrying with 'gemini-2.0-flash'...", cleanModel);
+                        String fallbackUrl = BASE_URL + "gemini-2.0-flash:generateContent?key=" + apiKey;
+                        Request retryReq = new Request.Builder()
+                                .url(fallbackUrl)
+                                .header("Content-Type", "application/json")
+                                .post(RequestBody.create(mapper.writeValueAsString(body), JSON_TYPE))
+                                .build();
+                        try (Response retryResp = http.newCall(retryReq).execute()) {
+                            if (retryResp.isSuccessful() && retryResp.body() != null) {
+                                JsonNode root = mapper.readTree(retryResp.body().string());
+                                JsonNode candidate = root.path("candidates").get(0);
+                                return parseCandidate(candidate);
+                            }
+                        } catch (Exception retryEx) {
+                            log.warn("[Gemini] Fallback retry failed: {}", retryEx.getMessage());
+                        }
+                    }
                     log.error("Gemini API error {}: {}", response.code(), errBody);
                     return LlmResponse.error("Gemini API error " + response.code() + ": " + errBody);
                 }
 
                 JsonNode root = mapper.readTree(response.body().string());
                 JsonNode candidate = root.path("candidates").get(0);
-                JsonNode contentNode = candidate.path("content");
-
-                // Check for function call parts
-                List<LlmResponse.ToolCallRequest> calls = new ArrayList<>();
-                StringBuilder textBuilder = new StringBuilder();
-
-                for (JsonNode part : contentNode.path("parts")) {
-                    if (part.has("functionCall")) {
-                        JsonNode fc = part.path("functionCall");
-                        String callId = "gemini-" + System.currentTimeMillis();
-                        if (part.has("thought_signature")) {
-                            callId = "ts:" + part.path("thought_signature").asText();
-                        } else if (fc.has("thought_signature")) {
-                            callId = "ts:" + fc.path("thought_signature").asText();
-                        }
-                        calls.add(LlmResponse.ToolCallRequest.builder()
-                                .id(callId)
-                                .name(fc.path("name").asText())
-                                .argumentsJson(mapper.writeValueAsString(fc.path("args")))
-                                .build());
-                    } else if (part.has("text")) {
-                        textBuilder.append(part.path("text").asText());
-                    }
-                }
-
-                if (!calls.isEmpty()) return LlmResponse.toolCalls(calls);
-                return LlmResponse.text(textBuilder.toString());
+                return parseCandidate(candidate);
             }
         } catch (Exception e) {
             log.error("Gemini client error", e);
             return LlmResponse.error("Gemini connection error: " + e.getMessage());
         }
+    }
+
+    private LlmResponse parseCandidate(JsonNode candidate) throws Exception {
+        if (candidate == null || candidate.isMissingNode()) {
+            return LlmResponse.text("No response generated.");
+        }
+        JsonNode contentNode = candidate.path("content");
+
+        // Inspect whole candidate for thought signature
+        String candidateSig = null;
+        if (candidate.has("thought_signature")) candidateSig = candidate.path("thought_signature").asText();
+        else if (candidate.has("thoughtSignature")) candidateSig = candidate.path("thoughtSignature").asText();
+
+        for (JsonNode p : contentNode.path("parts")) {
+            if (p.has("thought_signature")) candidateSig = p.path("thought_signature").asText();
+            else if (p.has("thoughtSignature")) candidateSig = p.path("thoughtSignature").asText();
+            if (p.has("functionCall")) {
+                JsonNode f = p.path("functionCall");
+                if (f.has("thought_signature")) candidateSig = f.path("thought_signature").asText();
+                else if (f.has("thoughtSignature")) candidateSig = f.path("thoughtSignature").asText();
+            }
+        }
+
+        // Check for function call parts
+        List<LlmResponse.ToolCallRequest> calls = new ArrayList<>();
+        StringBuilder textBuilder = new StringBuilder();
+
+        for (JsonNode part : contentNode.path("parts")) {
+            if (part.has("functionCall")) {
+                JsonNode fc = part.path("functionCall");
+                String rawName = fc.path("name").asText();
+                String cleanName = rawName.replace("default_api:", "");
+                String sig = candidateSig;
+                if (part.has("thought_signature")) sig = part.path("thought_signature").asText();
+                else if (part.has("thoughtSignature")) sig = part.path("thoughtSignature").asText();
+                else if (fc.has("thought_signature")) sig = fc.path("thought_signature").asText();
+                else if (fc.has("thoughtSignature")) sig = fc.path("thoughtSignature").asText();
+
+                String callId = (sig != null && !sig.isBlank()) ? "ts:" + sig : ("gemini-" + System.currentTimeMillis());
+                calls.add(LlmResponse.ToolCallRequest.builder()
+                        .id(callId)
+                        .name(cleanName)
+                        .argumentsJson(mapper.writeValueAsString(fc.path("args")))
+                        .build());
+            } else if (part.has("text")) {
+                textBuilder.append(part.path("text").asText());
+            }
+        }
+
+        if (!calls.isEmpty()) return LlmResponse.toolCalls(calls);
+        return LlmResponse.text(textBuilder.toString());
     }
 
     @Override

@@ -1094,3 +1094,304 @@ body {
 ::-webkit-scrollbar { width: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--c-dim); border-radius: 2px; }
+
+/* ─── Hardware Telemetry Gauges ─────────────────────────────────────────── */
+.telemetry-bar {
+  width: 100%;
+  max-width: 580px;
+  background: rgba(10, 16, 26, 0.7);
+  border: 1px solid var(--c-line);
+  backdrop-filter: blur(8px);
+  padding: 8px 12px;
+  margin-top: 8px;
+  border-radius: 4px;
+  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+  transition: all 0.3s ease;
+}
+.telemetry-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.telemetry-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 2px;
+  color: var(--c-bright);
+}
+.telemetry-dot {
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--c-glow);
+  box-shadow: 0 0 6px var(--c-glow);
+  animation: dot-pulse 1.8s infinite;
+}
+.telemetry-toggle {
+  background: transparent;
+  border: none;
+  color: var(--c-mid);
+  cursor: pointer;
+  font-size: 12px;
+  padding: 2px 6px;
+}
+.telemetry-gauges {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-top: 8px;
+  padding-top: 6px;
+  border-top: 1px solid rgba(var(--c-glow-rgb), 0.1);
+}
+.telemetry-item {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+}
+.telemetry-label-row {
+  display: flex;
+  justify-content: space-between;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 1px;
+  color: var(--c-mid);
+}
+.telemetry-track {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.telemetry-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s cubic-bezier(0.4, 0, 0.2, 1), background-color 0.4s;
+}
+.telemetry-sub {
+  font-size: 9px;
+  color: var(--c-dim);
+  letter-spacing: 0.5px;
+}
+
+/* ─── Holographic Blueprints & AI Imagery ────────────────────────────────── */
+.blueprint-card {
+  border: 1px solid rgba(var(--c-glow-rgb), 0.4) !important;
+  background: radial-gradient(circle at center, rgba(var(--c-glow-rgb), 0.06), transparent 80%) !important;
+}
+.blueprint-prompt {
+  font-size: 11px;
+  color: var(--c-mid);
+  font-style: italic;
+  margin-bottom: 8px;
+}
+.blueprint-img-wrapper {
+  position: relative;
+  border-radius: 3px;
+  overflow: hidden;
+  cursor: pointer;
+  border: 1px solid var(--c-line);
+}
+.blueprint-glow {
+  width: 100%;
+  height: auto;
+  max-height: 160px;
+  object-fit: cover;
+  display: block;
+  transition: transform 0.3s ease;
+}
+.blueprint-img-wrapper:hover .blueprint-glow {
+  transform: scale(1.03);
+}
+.blueprint-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.4);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+  font-family: 'Orbitron', sans-serif;
+  font-size: 10px;
+  letter-spacing: 1.5px;
+  color: var(--c-bright);
+}
+.blueprint-img-wrapper:hover .blueprint-overlay {
+  opacity: 1;
+}
+.badge-protocol {
+  background: rgba(var(--c-glow-rgb), 0.2);
+  border: 1px solid var(--c-glow);
+  color: var(--c-bright);
+  font-size: 9px;
+  font-family: 'Orbitron', sans-serif;
+  padding: 2px 6px;
+  letter-spacing: 1px;
+}
+
+/* ─── Biometric Face Scanner Modal ───────────────────────────────────────── */
+.biometric-modal {
+  background: rgba(8, 12, 20, 0.95);
+  border: 1px solid var(--c-glow);
+  box-shadow: 0 0 30px rgba(var(--c-glow-rgb), 0.4), inset 0 0 15px rgba(var(--c-glow-rgb), 0.1);
+  width: 90%;
+  max-width: 540px;
+  border-radius: 4px;
+  overflow: hidden;
+  animation: modal-in 0.3s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.biometric-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--c-line);
+}
+.biometric-title {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 11px;
+  letter-spacing: 2px;
+  color: var(--c-bright);
+}
+.biometric-viewport {
+  position: relative;
+  width: 100%;
+  height: 340px;
+  background: #020408;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+}
+.biometric-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+  filter: contrast(1.1) brightness(0.95);
+}
+.biometric-fallback-sim {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.sim-face-outline {
+  width: 120px;
+  height: 160px;
+  border: 2px dashed rgba(var(--c-glow-rgb), 0.5);
+  border-radius: 50% 50% 45% 45%;
+}
+.hud-reticle-ring {
+  position: absolute;
+  border-radius: 50%;
+  pointer-events: none;
+}
+.ring-outer {
+  width: 220px;
+  height: 220px;
+  border: 2px dashed rgba(var(--c-glow-rgb), 0.6);
+  animation: ring-cw 12s linear infinite;
+}
+.ring-inner {
+  width: 160px;
+  height: 160px;
+  border: 1px solid rgba(var(--c-glow-rgb), 0.4);
+  animation: ring-ccw 8s linear infinite;
+}
+.hud-reticle-crosshair {
+  position: absolute;
+  width: 80px;
+  height: 80px;
+  border-top: 1px solid var(--c-glow);
+  border-bottom: 1px solid var(--c-glow);
+  border-left: 1px solid var(--c-glow);
+  border-right: 1px solid var(--c-glow);
+  opacity: 0.7;
+}
+.biometric-laser {
+  position: absolute;
+  left: 0; right: 0;
+  height: 3px;
+  background: linear-gradient(90deg, transparent, var(--c-glow), #ffffff, var(--c-glow), transparent);
+  box-shadow: 0 0 15px var(--c-glow);
+  animation: laser-sweep 2s ease-in-out infinite alternate;
+}
+.biometric-laser.laser-done {
+  background: #00ff88;
+  box-shadow: 0 0 20px #00ff88;
+  animation: none;
+  top: 50%;
+}
+@keyframes laser-sweep {
+  0%   { top: 15%; opacity: 0.8; }
+  100% { top: 85%; opacity: 0.8; }
+}
+.hud-corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-color: var(--c-glow);
+  border-style: solid;
+  pointer-events: none;
+}
+.top-left { top: 12px; left: 12px; border-width: 2px 0 0 2px; }
+.top-right { top: 12px; right: 12px; border-width: 2px 2px 0 0; }
+.bottom-left { bottom: 12px; left: 12px; border-width: 0 0 2px 2px; }
+.bottom-right { bottom: 12px; right: 12px; border-width: 0 2px 2px 0; }
+
+.biometric-verified-overlay {
+  position: absolute;
+  inset: 0;
+  background: rgba(0, 20, 10, 0.75);
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  animation: fade-in 0.4s ease;
+}
+.verified-stamp {
+  font-family: 'Orbitron', sans-serif;
+  font-size: 20px;
+  font-weight: 900;
+  color: #00ff88;
+  text-shadow: 0 0 15px #00ff88;
+  letter-spacing: 3px;
+  margin-bottom: 8px;
+}
+.verified-name {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 16px;
+  font-weight: 700;
+  color: #ffffff;
+  letter-spacing: 2px;
+}
+.verified-clearance {
+  font-size: 11px;
+  color: #88ffbb;
+  letter-spacing: 1px;
+  margin-top: 4px;
+}
+.biometric-footer {
+  padding: 12px 16px;
+  border-top: 1px solid var(--c-line);
+}
+.biometric-status-text {
+  font-family: 'Share Tech Mono', monospace;
+  font-size: 11px;
+  color: var(--c-bright);
+  margin-bottom: 8px;
+}
+.biometric-progress-bar {
+  width: 100%;
+  height: 4px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 2px;
+  overflow: hidden;
+}
+.biometric-progress-fill {
+  height: 100%;
+  transition: width 0.4s ease, background-color 0.4s ease;
+}
+
