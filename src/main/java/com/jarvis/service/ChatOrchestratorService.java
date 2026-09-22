@@ -246,6 +246,105 @@ public class ChatOrchestratorService {
                         }
                     }
                 }
+                // 2D. Webcam Vision Interception ("look through camera", "what am I holding", "sentry check")
+                else if (lowerUser.contains("webcam") || lowerUser.contains("through my camera") || lowerUser.contains("through the camera")
+                        || lowerUser.contains("what am i holding") || lowerUser.contains("what is in my hand")
+                        || lowerUser.contains("look at what i") || lowerUser.contains("sentry check") || lowerUser.contains("who is in the room")) {
+                    log.info("[Orchestrator] Fulfilling Webcam Vision request: '{}'", userText);
+                    java.util.Optional<com.jarvis.tools.JarvisTool> camTool = toolRegistry.getTool("webcam_vision");
+                    if (camTool.isPresent()) {
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(camTool.get(), Map.of("question", userText), conversationId, null);
+                        if (res.isSuccess()) {
+                            callback.onToolCall("webcam_vision", "OK", res);
+                            finalText = res.getSummary();
+                        }
+                    }
+                }
+                // 2E. Developer Copilot Interception (kill port, top processes, git commands)
+                else if (lowerUser.contains("kill port") || lowerUser.contains("free port") || lowerUser.contains("kill process")
+                        || lowerUser.contains("top process") || lowerUser.contains("using my ram") || lowerUser.contains("eating my ram")
+                        || lowerUser.contains("git status") || lowerUser.contains("git log") || lowerUser.contains("git push")
+                        || lowerUser.contains("git pull") || lowerUser.contains("git diff")) {
+                    log.info("[Orchestrator] Fulfilling Developer Copilot request: '{}'", userText);
+                    java.util.Optional<com.jarvis.tools.JarvisTool> devTool = toolRegistry.getTool("dev_shell");
+                    if (devTool.isPresent()) {
+                        Map<String, Object> devParams = new java.util.LinkedHashMap<>();
+                        if (lowerUser.contains("kill port") || lowerUser.contains("free port")) {
+                            devParams.put("action", "kill_port");
+                            java.util.regex.Matcher portMatcher = java.util.regex.Pattern.compile("(\\d{3,5})").matcher(userText);
+                            int port = portMatcher.find() ? Integer.parseInt(portMatcher.group(1)) : 8080;
+                            devParams.put("port", port);
+                        } else if (lowerUser.contains("git")) {
+                            devParams.put("action", "run_git");
+                            String gCmd = "status";
+                            if (lowerUser.contains("push")) gCmd = "push";
+                            else if (lowerUser.contains("pull")) gCmd = "pull";
+                            else if (lowerUser.contains("log")) gCmd = "log";
+                            else if (lowerUser.contains("diff")) gCmd = "diff";
+                            devParams.put("git_command", gCmd);
+                        } else if (lowerUser.contains("ram") || lowerUser.contains("top process")) {
+                            devParams.put("action", "top_processes");
+                        } else if (lowerUser.contains("kill process")) {
+                            devParams.put("action", "kill_process");
+                            String target = userText.replaceAll("(?i).*?kill process\\s+", "").trim();
+                            devParams.put("target", target);
+                        }
+
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(devTool.get(), devParams, conversationId, null);
+                        if (res.isSuccess()) {
+                            callback.onToolCall("dev_shell", "OK", res);
+                            finalText = res.getSummary();
+                        }
+                    }
+                }
+                // 2F. WhatsApp Automation Interception ("send whatsapp to ...", "whatsapp message")
+                else if (lowerUser.contains("whatsapp") || lowerUser.contains("whats app")) {
+                    log.info("[Orchestrator] Fulfilling WhatsApp request: '{}'", userText);
+                    java.util.Optional<com.jarvis.tools.JarvisTool> waTool = toolRegistry.getTool("whatsapp_action");
+                    if (waTool.isPresent()) {
+                        Map<String, Object> waParams = new java.util.LinkedHashMap<>();
+                        java.util.regex.Matcher phoneMatcher = java.util.regex.Pattern.compile("(\\+?[0-9]{10,13})").matcher(userText);
+                        if (phoneMatcher.find()) {
+                            waParams.put("phone", phoneMatcher.group(1));
+                        }
+                        String msg = userText.replaceAll("(?i).*?(saying|that|message)\\s+", "").replaceAll("(?i)(on whatsapp|via whatsapp)", "").trim();
+                        if (msg.isBlank()) msg = "Hello from JARVIS";
+                        waParams.put("message", msg);
+                        boolean sendNow = lowerUser.contains("send it") || lowerUser.contains("send now") || lowerUser.contains("auto send");
+                        waParams.put("send_now", sendNow);
+
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(waTool.get(), waParams, conversationId, null);
+                        if (res.isSuccess()) {
+                            callback.onToolCall("whatsapp_action", "OK", res);
+                            finalText = res.getSummary();
+                        }
+                    }
+                }
+                // 2G. Calendar & Daily Agenda Interception ("schedule meeting", "what is on my schedule", "calendar")
+                else if (lowerUser.contains("calendar") || lowerUser.contains("schedule meeting") || lowerUser.contains("schedule appointment")
+                        || lowerUser.contains("my agenda") || lowerUser.contains("my schedule") || lowerUser.contains("what's on my schedule")
+                        || lowerUser.contains("what is on my schedule")) {
+                    log.info("[Orchestrator] Fulfilling Calendar request: '{}'", userText);
+                    java.util.Optional<com.jarvis.tools.JarvisTool> calTool = toolRegistry.getTool("calendar_tool");
+                    if (calTool.isPresent()) {
+                        Map<String, Object> calParams = new java.util.LinkedHashMap<>();
+                        if (lowerUser.contains("schedule") || lowerUser.contains("add to") || lowerUser.contains("create event")) {
+                            calParams.put("action", "create_event");
+                            String title = userText.replaceAll("(?i).*?(schedule|add to calendar|create event)\\s+", "").replaceAll("(?i)(tomorrow|today|at|on|for).*$", "").trim();
+                            if (title.isBlank()) title = "Meeting with Mr. Raj";
+                            calParams.put("title", title);
+                            calParams.put("time", userText.contains("tomorrow") ? "Tomorrow" : "Today");
+                        } else {
+                            calParams.put("action", "list_agenda");
+                        }
+
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(calTool.get(), calParams, conversationId, null);
+                        if (res.isSuccess()) {
+                            callback.onToolCall("calendar_tool", "OK", res);
+                            finalText = res.getSummary();
+                        }
+                    }
+                }
                 // 3. Iron Man Protocols ("protocol house party", "party mode", "stealth mode", "morning briefing", "combat ready")
                 else if (lowerUser.contains("protocol") || lowerUser.contains("house party") || lowerUser.contains("party mode")
                         || lowerUser.contains("stealth mode") || lowerUser.contains("morning briefing") || lowerUser.contains("morning protocol")
@@ -592,6 +691,11 @@ public class ChatOrchestratorService {
                 + "- Available tool: 'manage_timer' sets countdown timers with visual HUD countdown cards (e.g. 'set a timer for 10 minutes').\n"
                 + "- Available tool: 'desktop_action' simulates physical keyboard and mouse interactions on Windows: click buttons (action='click_mouse'), press keys (action='press_key', key='enter', 'space', 'tab', 'escape', 'k'), send keyboard shortcuts (action='send_shortcut', shortcut='ctrl+enter' to send email or submit forms, 'alt+tab', 'ctrl+w'), or type text into active applications (action='type_text', text='...').\n"
                 + "- Available tool: 'compose_email' drafts or sends an email via Gmail: opens the Gmail compose window with recipient (to), subject, and pre-written message body, and can automatically press Send (send_now=true).\n"
+                + "- Available tool: 'browse_web_page' autonomously browses web pages, reads documentation, extracts product prices, articles, GitHub repositories, or search results from the web.\n"
+                + "- Available tool: 'dev_shell' is your developer terminal copilot: frees blocked ports (action='kill_port', port=8080), inspects top RAM/CPU processes (action='top_processes'), terminates frozen processes (action='kill_process'), and runs safe git commands (action='run_git', git_command='status'/'log'/'diff'/'push').\n"
+                + "- Available tool: 'webcam_vision' captures a photo from the user's laptop webcam and analyzes real-world objects, handwritten notes, components, or room surroundings using Gemini Vision.\n"
+                + "- Available tool: 'whatsapp_action' sends WhatsApp messages via WhatsApp Web/Desktop: opens a chat with recipient phone number or contact and pre-fills message text.\n"
+                + "- Available tool: 'calendar_tool' manages calendar and daily schedule: creates Google Calendar events (action='create_event'), lists agenda (action='list_agenda'), or clears events (action='delete_event').\n"
                 + "- Conversational continuity: remember previous topics and conversational pronouns ('them', 'it', 'undo that', 'put them back').\n"
                 + "- Always address " + userName + " respectfully as '" + callSign + "'.";
         messages.add(Map.of("role", "system", "content", sysPrompt));

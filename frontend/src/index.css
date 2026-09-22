@@ -1723,5 +1723,251 @@ body {
   display: none !important;
 }
 
+/* Optical Sentry / Webcam Viewfinder Modal */
+.cam-modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(4, 7, 14, 0.88);
+  backdrop-filter: blur(12px);
+  z-index: 99999;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: fadeIn 0.25s ease;
+}
 
+.cam-modal-content {
+  width: 680px;
+  max-width: 94vw;
+  background: rgba(10, 16, 28, 0.95);
+  border: 1px solid var(--c-glow);
+  box-shadow: 0 0 50px rgba(var(--c-glow-rgb), 0.4), inset 0 0 25px rgba(var(--c-glow-rgb), 0.1);
+  border-radius: 14px;
+  padding: 18px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  position: relative;
+}
 
+.cam-modal-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  border-bottom: 1px solid rgba(var(--c-glow-rgb), 0.25);
+  padding-bottom: 8px;
+}
+
+.cam-modal-title {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 2px;
+  color: var(--c-bright);
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cam-live-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: 50%;
+  background: var(--c-danger);
+  box-shadow: 0 0 8px var(--c-danger);
+  animation: pulse-danger 1s infinite;
+}
+
+.cam-close-btn {
+  background: transparent;
+  border: 1px solid var(--c-line);
+  color: var(--c-text);
+  width: 28px;
+  height: 28px;
+  border-radius: 4px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  transition: all 0.2s ease;
+}
+
+.cam-close-btn:hover {
+  border-color: var(--c-danger);
+  color: var(--c-danger);
+}
+
+.cam-viewport {
+  width: 100%;
+  height: 380px;
+  background: #020408;
+  border: 1px solid rgba(var(--c-glow-rgb), 0.3);
+  border-radius: 8px;
+  overflow: hidden;
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.cam-video-element {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.cam-error-box {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 6px;
+  color: var(--c-danger);
+  text-align: center;
+  padding: 20px;
+}
+
+.cam-error-icon {
+  font-size: 32px;
+}
+
+.cam-reticle-overlay {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.cam-reticle-circle {
+  position: absolute;
+  top: 50%;
+  left: 50%;
+  width: 120px;
+  height: 120px;
+  margin-top: -60px;
+  margin-left: -60px;
+  border: 1.5px dashed var(--c-glow);
+  border-radius: 50%;
+  opacity: 0.65;
+  animation: spin 16s linear infinite;
+}
+
+.cam-reticle-h {
+  position: absolute;
+  top: 50%;
+  left: 15%;
+  right: 15%;
+  height: 1px;
+  background: linear-gradient(90deg, transparent, rgba(var(--c-glow-rgb), 0.4), transparent);
+}
+
+.cam-reticle-v {
+  position: absolute;
+  left: 50%;
+  top: 15%;
+  bottom: 15%;
+  width: 1px;
+  background: linear-gradient(180deg, transparent, rgba(var(--c-glow-rgb), 0.4), transparent);
+}
+
+.cam-corner-bracket {
+  position: absolute;
+  width: 24px;
+  height: 24px;
+  border: 2px solid var(--c-glow);
+}
+.cam-corner-bracket.tl { top: 12px; left: 12px; border-right: none; border-bottom: none; }
+.cam-corner-bracket.tr { top: 12px; right: 12px; border-left: none; border-bottom: none; }
+.cam-corner-bracket.bl { bottom: 12px; left: 12px; border-right: none; border-top: none; }
+.cam-corner-bracket.br { bottom: 12px; right: 12px; border-left: none; border-top: none; }
+
+.cam-hud-readout {
+  position: absolute;
+  bottom: 14px;
+  left: 16px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 1.5px;
+  color: var(--c-glow);
+  text-shadow: 0 0 6px var(--c-glow);
+}
+
+.cam-quick-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.cam-chip {
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.8px;
+  padding: 6px 12px;
+  border-radius: 20px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--c-line);
+  color: var(--c-text);
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.cam-chip:hover {
+  background: rgba(var(--c-glow-rgb), 0.15);
+  border-color: var(--c-glow);
+  color: var(--c-bright);
+}
+
+.cam-input-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.cam-text-input {
+  flex: 1;
+  height: 38px;
+  background: rgba(0, 0, 0, 0.6);
+  border: 1px solid var(--c-line);
+  border-radius: 6px;
+  padding: 0 12px;
+  color: var(--c-text);
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  outline: none;
+}
+
+.cam-text-input:focus {
+  border-color: var(--c-glow);
+  box-shadow: 0 0 8px rgba(var(--c-glow-rgb), 0.3);
+}
+
+.cam-capture-button {
+  height: 38px;
+  padding: 0 18px;
+  background: var(--c-glow);
+  color: #000;
+  border: none;
+  border-radius: 6px;
+  font-family: 'Rajdhani', sans-serif;
+  font-size: 13px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  cursor: pointer;
+  box-shadow: 0 0 15px rgba(var(--c-glow-rgb), 0.5);
+  transition: all 0.2s ease;
+}
+
+.cam-capture-button:hover:not(:disabled) {
+  transform: scale(1.03);
+}
+
+.capturing-flash {
+  animation: flashWhite 0.3s ease;
+}
+
+@keyframes flashWhite {
+  0% { filter: brightness(1); }
+  50% { filter: brightness(2.5); }
+  100% { filter: brightness(1); }
+}

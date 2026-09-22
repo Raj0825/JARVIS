@@ -60,6 +60,13 @@
 			<artifactId>commons-lang3</artifactId>
 		</dependency>
 
+		<!-- JSoup for autonomous web scraping and browser agent -->
+		<dependency>
+			<groupId>org.jsoup</groupId>
+			<artifactId>jsoup</artifactId>
+			<version>1.17.2</version>
+		</dependency>
+
 		<!-- Test -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>

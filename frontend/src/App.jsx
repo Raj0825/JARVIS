@@ -12,6 +12,7 @@ import { useSpeechSynthesis } from './hooks/useSpeechSynthesis';
 import { audioEffects } from './utils/audioEffects';
 import { TelemetryGaugePanel } from './components/TelemetryGaugePanel';
 import { BiometricScannerModal } from './components/BiometricScannerModal';
+import { WebcamViewerModal } from './components/WebcamViewerModal';
 import { useAmbientAlerts } from './hooks/useAmbientAlerts';
 
 // ─── State machine ────────────────────────────────────────────────────────
@@ -36,6 +37,7 @@ export default function App() {
   const [clock, setClock] = useState('');
   const [sessionId] = useState(() => 'JV-' + Math.floor(1000 + Math.random() * 9000));
   const [showBiometrics, setShowBiometrics] = useState(false);
+  const [showWebcam, setShowWebcam] = useState(false);
   const [isMiniMode, setIsMiniMode] = useState(false);
   const [pipWindow, setPipWindow] = useState(null);
 
@@ -446,6 +448,25 @@ export default function App() {
               👁 BIOMETRIC SCAN
             </button>
             <button
+              className="btn-icon"
+              id="btn-optical-cam"
+              title="Activate Optical Sentry / Webcam Viewfinder"
+              onClick={() => setShowWebcam(true)}
+              style={{
+                border: '1px solid var(--c-line)',
+                color: 'var(--c-glow)',
+                fontSize: 11,
+                width: 'auto',
+                padding: '0 10px',
+                borderRadius: 2,
+                letterSpacing: 1,
+                fontFamily: 'Rajdhani',
+                fontWeight: 700,
+              }}
+            >
+              📸 OPTICAL CAM
+            </button>
+            <button
               className={`btn-icon ${isMiniMode ? 'active' : ''}`}
               id="btn-mini-mode"
               title={isMiniMode ? 'Expand to Full HUD' : 'Switch to Compact HUD'}
@@ -561,6 +582,16 @@ export default function App() {
           const uName = settings.userName || 'Raj Shah';
           addMessage('assistant', `Biometric identity verified: ${uName}. Security clearance Level 10 confirmed. Welcome back, ${callSign}.`);
           speak(`Biometric identity verified. Welcome back, ${callSign}.`);
+        }}
+      />
+
+      {/* ─── Optical Sentry / Webcam Viewfinder Modal ──────────────────── */}
+      <WebcamViewerModal
+        isOpen={showWebcam}
+        onClose={() => setShowWebcam(false)}
+        onAnalyzeFrame={(query, base64Jpg) => {
+          addMessage('user', query);
+          sendMessage(query);
         }}
       />
     </>
