@@ -154,11 +154,7 @@ export default function App() {
   // ─── WebSocket ────────────────────────────────────────────────────────
   const { status: wsStatus, sendMessage, newConversation, reconnect } = useJarvisSocket({
     onConnected: () => {
-      if (!hasGreetedRef.current) {
-        hasGreetedRef.current = true;
-        const callSign = settings.userCallSign || 'Mr. Raj';
-        addMessage('assistant', `All systems online, ${callSign}. Neural link established and standing by for your command.`);
-      }
+      console.log('[WS] Jarvis neural connection confirmed');
     },
     onThinking: (s) => {
       setIsThinking(true);
@@ -276,6 +272,11 @@ export default function App() {
     setBooted(true);
     audioEffects.boot();
     toggleWakeWordMode(true);
+    if (!hasGreetedRef.current) {
+      hasGreetedRef.current = true;
+      const callSign = settings.userCallSign || 'Mr. Raj';
+      addMessage('assistant', `All systems online, ${callSign}. Neural link established and standing by for your command.`);
+    }
   };
 
   // ─── Keyboard shortcut: Space for mic ────────────────────────────────
