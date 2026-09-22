@@ -58,12 +58,14 @@ export function WebcamViewerModal({ isOpen, onClose, onAnalyzeFrame }) {
 
     const video = videoRef.current;
     const canvas = document.createElement('canvas');
-    canvas.width = video.videoWidth || 640;
-    canvas.height = video.videoHeight || 480;
+    const maxWidth = 640;
+    const scale = Math.min(1, maxWidth / (video.videoWidth || 640));
+    canvas.width = Math.round((video.videoWidth || 640) * scale);
+    canvas.height = Math.round((video.videoHeight || 480) * scale);
     const ctx = canvas.getContext('2d');
     ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
 
-    const base64Jpg = canvas.toDataURL('image/jpeg', 0.85).split(',')[1];
+    const base64Jpg = canvas.toDataURL('image/jpeg', 0.8).split(',')[1];
     const finalQuery = queryOverride || promptText || 'Please inspect what is shown in front of the camera in detail.';
 
     setTimeout(() => {

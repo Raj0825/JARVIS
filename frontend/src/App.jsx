@@ -40,6 +40,7 @@ export default function App() {
   const [showWebcam, setShowWebcam] = useState(false);
   const [isMiniMode, setIsMiniMode] = useState(false);
   const [pipWindow, setPipWindow] = useState(null);
+  const hasGreetedRef = useRef(false);
 
   const { speak, stopSpeaking, isSpeakingRef } = useSpeechSynthesis();
 
@@ -153,8 +154,11 @@ export default function App() {
   // ─── WebSocket ────────────────────────────────────────────────────────
   const { status: wsStatus, sendMessage, newConversation, reconnect } = useJarvisSocket({
     onConnected: () => {
-      const callSign = settings.userCallSign || 'Mr. Raj';
-      addMessage('assistant', `All systems online, ${callSign}. Neural link established and standing by for your command.`);
+      if (!hasGreetedRef.current) {
+        hasGreetedRef.current = true;
+        const callSign = settings.userCallSign || 'Mr. Raj';
+        addMessage('assistant', `All systems online, ${callSign}. Neural link established and standing by for your command.`);
+      }
     },
     onThinking: (s) => {
       setIsThinking(true);
