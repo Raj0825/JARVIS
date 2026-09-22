@@ -54,7 +54,11 @@ public class ChatOrchestratorService {
      * Processes a new user message in a conversation, running the LLM + tool-calling loop.
      */
     public void processMessage(String conversationId, String userText, EventCallback callback) {
-        log.info("[Orchestrator] Processing message in conv={}: '{}'", conversationId, userText);
+        processMessage(conversationId, userText, null, callback);
+    }
+
+    public void processMessage(String conversationId, String userText, String imageBase64, EventCallback callback) {
+        log.info("[Orchestrator] Processing message in conv={}: '{}' (imageBase64={})", conversationId, userText, imageBase64 != null ? "YES" : "NO");
         JarvisSettings settings = settingsService.getSettings("default");
 
         // Persist user message
@@ -246,14 +250,21 @@ public class ChatOrchestratorService {
                         }
                     }
                 }
-                // 2D. Webcam Vision Interception ("look through camera", "what am I holding", "sentry check")
-                else if (lowerUser.contains("webcam") || lowerUser.contains("through my camera") || lowerUser.contains("through the camera")
+                // 2D. Webcam Vision Interception ("look through camera", "what am I holding", or imageBase64 provided)
+                else if ((imageBase64 != null && !imageBase64.isBlank())
+                        || lowerUser.contains("webcam") || lowerUser.contains("through my camera") || lowerUser.contains("through the camera")
                         || lowerUser.contains("what am i holding") || lowerUser.contains("what is in my hand")
-                        || lowerUser.contains("look at what i") || lowerUser.contains("sentry check") || lowerUser.contains("who is in the room")) {
-                    log.info("[Orchestrator] Fulfilling Webcam Vision request: '{}'", userText);
+                        || lowerUser.contains("look at what i") || lowerUser.contains("sentry check") || lowerUser.contains("who is in the room")
+                        || lowerUser.contains("camera frame") || lowerUser.contains("inspect camera") || lowerUser.contains("read document")) {
+                    log.info("[Orchestrator] Fulfilling Webcam Vision request with image: {}", (imageBase64 != null ? "YES" : "NO"));
                     java.util.Optional<com.jarvis.tools.JarvisTool> camTool = toolRegistry.getTool("webcam_vision");
                     if (camTool.isPresent()) {
-                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(camTool.get(), Map.of("question", userText), conversationId, null);
+                        Map<String, Object> camParams = new java.util.LinkedHashMap<>();
+                        camParams.put("question", userText);
+                        if (imageBase64 != null && !imageBase64.isBlank()) {
+                            camParams.put("image_base64", imageBase64);
+                        }
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(camTool.get(), camParams, conversationId, null);
                         if (res.isSuccess()) {
                             callback.onToolCall("webcam_vision", "OK", res);
                             finalText = res.getSummary();
@@ -610,6 +621,10 @@ public class ChatOrchestratorService {
                         result = ToolResult.failure("Unknown tool: " + toolCall.getName());
                     } else {
                         Map<String, Object> params = parseArgs(toolCall.getArgumentsJson());
+                        if (toolCall.getName().equals("webcam_vision") && imageBase64 != null && !params.containsKey("image_base64")) {
+                            params = new java.util.LinkedHashMap<>(params);
+                            params.put("image_base64", imageBase64);
+                        }
                         result = permissionGate.checkAndExecute(toolOpt.get(), params, conversationId, assistantMessageId);
                     }
 

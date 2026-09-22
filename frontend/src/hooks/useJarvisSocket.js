@@ -153,12 +153,12 @@ export function useJarvisSocket({ onThinking, onToolCall, onReply, onError, onCo
   }, [startConnect]);
 
   // ─── Send message ─────────────────────────────────────────────────────
-  const sendMessage = useCallback((text) => {
+  const sendMessage = useCallback((text, extraPayload = {}) => {
     if (wsRef.current?.readyState !== WebSocket.OPEN) {
       cb.current.onError?.('Not connected — click ⟳ RECONNECT and try again.');
       return;
     }
-    const payload = { type: 'CHAT', text };
+    const payload = { type: 'CHAT', text, ...extraPayload };
     if (conversationId.current) payload.conversationId = conversationId.current;
     wsRef.current.send(JSON.stringify(payload));
   }, []);

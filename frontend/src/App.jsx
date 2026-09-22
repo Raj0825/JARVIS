@@ -591,7 +591,7 @@ export default function App() {
         onClose={() => setShowWebcam(false)}
         onAnalyzeFrame={(query, base64Jpg) => {
           addMessage('user', query);
-          sendMessage(query);
+          sendMessage(query, { imageBase64: base64Jpg });
         }}
       />
     </>

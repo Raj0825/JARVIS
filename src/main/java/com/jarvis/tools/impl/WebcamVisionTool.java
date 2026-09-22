@@ -81,6 +81,13 @@ public class WebcamVisionTool implements JarvisTool {
         }
 
         String base64Image = (String) params.get("image_base64");
+        if (base64Image != null && !base64Image.isBlank()) {
+            if (base64Image.contains(",")) {
+                base64Image = base64Image.substring(base64Image.indexOf(",") + 1);
+            }
+            base64Image = base64Image.replaceAll("\\s+", "");
+            log.info("[WebcamVision] Received valid base64 frame from client (length: {})", base64Image.length());
+        }
 
         try {
             // 1. If no image was passed from HUD, capture via Windows MediaCapture PowerShell script

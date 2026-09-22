@@ -101,11 +101,17 @@ public class JarvisWebSocketHandler extends TextWebSocketHandler {
             sendToSession(session, Map.of("type", "CONVERSATION_CREATED", "conversationId", conversationId));
         }
 
+        String imageBase64 = (String) payload.get("imageBase64");
+        if (imageBase64 == null) {
+            imageBase64 = (String) payload.get("image_base64");
+        }
+        final String finalImageBase64 = imageBase64;
+
         final String finalConvId = conversationId;
         final WebSocketSession boundSession = session;
 
         asyncExecutor.submit(() -> {
-            orchestrator.processMessage(finalConvId, text, new ChatOrchestratorService.EventCallback() {
+            orchestrator.processMessage(finalConvId, text, finalImageBase64, new ChatOrchestratorService.EventCallback() {
                 @Override
                 public void onThinking(String status) {
                     sendToSession(boundSession, Map.of("type", "THINKING", "status", status));
