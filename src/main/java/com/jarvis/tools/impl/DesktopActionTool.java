@@ -100,6 +100,7 @@ public class DesktopActionTool implements JarvisTool {
                     String key = (String) params.get("key");
                     if (key == null || key.isBlank()) key = "enter";
                     key = key.toLowerCase(Locale.ROOT).trim();
+                    bringTargetToFront((String) params.get("target_window"));
                     pressNamedKey(robot, key);
                     return ToolResult.success("Pressed " + key.toUpperCase() + " key.", Map.of("key", key), null);
                 }
@@ -108,6 +109,7 @@ public class DesktopActionTool implements JarvisTool {
                     String shortcut = (String) params.get("shortcut");
                     if (shortcut == null || shortcut.isBlank()) shortcut = "ctrl+enter";
                     shortcut = shortcut.toLowerCase(Locale.ROOT).trim();
+                    bringTargetToFront((String) params.get("target_window"));
                     sendKeyCombination(robot, shortcut);
                     return ToolResult.success("Sent shortcut combination " + shortcut.toUpperCase() + ".", Map.of("shortcut", shortcut), null);
                 }
@@ -120,6 +122,13 @@ public class DesktopActionTool implements JarvisTool {
                     if (xNum != null && yNum != null) {
                         robot.mouseMove(xNum.intValue(), yNum.intValue());
                         robot.delay(100);
+                    } else {
+                        // Click at current physical mouse cursor position
+                        try {
+                            Point cur = MouseInfo.getPointerInfo().getLocation();
+                            robot.mouseMove(cur.x, cur.y);
+                            robot.delay(50);
+                        } catch (Exception ignored) {}
                     }
 
                     int mask = button.equalsIgnoreCase("right") ? InputEvent.BUTTON3_DOWN_MASK : InputEvent.BUTTON1_DOWN_MASK;
@@ -177,10 +186,32 @@ public class DesktopActionTool implements JarvisTool {
         }
     }
 
+    private void bringTargetToFront(String targetWindow) {
+        try {
+            String script;
+            if (targetWindow != null && !targetWindow.isBlank()) {
+                script = "$ws = New-Object -ComObject WScript.Shell; $ws.AppActivate('" + targetWindow.replace("'", "") + "')";
+            } else {
+                // Focus the last active browser/messenger/email window
+                script = "$ws = New-Object -ComObject WScript.Shell; " +
+                        "if (-not $ws.AppActivate('Gmail')) { " +
+                        "  if (-not $ws.AppActivate('Google Chrome')) { " +
+                        "    if (-not $ws.AppActivate('WhatsApp')) { " +
+                        "      $ws.AppActivate('Edge'); " +
+                        "    } " +
+                        "  } " +
+                        "}";
+            }
+            ProcessBuilder pb = new ProcessBuilder("powershell.exe", "-NoProfile", "-Command", script);
+            pb.start().waitFor(600, java.util.concurrent.TimeUnit.MILLISECONDS);
+            Thread.sleep(120);
+        } catch (Exception ignored) {}
+    }
+
     private void pressNamedKey(Robot robot, String key) {
         int code = switch (key) {
-            case "enter", "return" -> KeyEvent.VK_ENTER;
-            case "space", "spacebar" -> KeyEvent.VK_SPACE;
+            case "enter", "return", "send" -> KeyEvent.VK_ENTER;
+            case "space", "spacebar", "play", "pause" -> KeyEvent.VK_SPACE;
             case "tab" -> KeyEvent.VK_TAB;
             case "esc", "escape" -> KeyEvent.VK_ESCAPE;
             case "backspace" -> KeyEvent.VK_BACK_SPACE;
@@ -189,6 +220,7 @@ public class DesktopActionTool implements JarvisTool {
             case "down" -> KeyEvent.VK_DOWN;
             case "left" -> KeyEvent.VK_LEFT;
             case "right" -> KeyEvent.VK_RIGHT;
+            case "c" -> KeyEvent.VK_C; // Gmail compose
             case "k" -> KeyEvent.VK_K; // YouTube play/pause
             case "f" -> KeyEvent.VK_F; // YouTube full screen
             case "m" -> KeyEvent.VK_M; // YouTube mute
@@ -205,11 +237,17 @@ public class DesktopActionTool implements JarvisTool {
         combo = combo.replace(" ", "").toLowerCase(Locale.ROOT);
 
         if (combo.contains("ctrl") && combo.contains("enter")) {
-            // Gmail send or form submit
+            // Gmail send, message send, or form submit
             robot.keyPress(KeyEvent.VK_CONTROL);
             robot.keyPress(KeyEvent.VK_ENTER);
             robot.keyRelease(KeyEvent.VK_ENTER);
             robot.keyRelease(KeyEvent.VK_CONTROL);
+            // Also execute via WScript.Shell SendKeys for maximum compatibility
+            try {
+                ProcessBuilder pb = new ProcessBuilder("powershell.exe", "-NoProfile", "-Command",
+                        "$ws = New-Object -ComObject WScript.Shell; $ws.SendKeys('^{ENTER}')");
+                pb.start().waitFor(400, java.util.concurrent.TimeUnit.MILLISECONDS);
+            } catch (Exception ignored) {}
         } else if (combo.contains("ctrl") && combo.contains("t")) {
             robot.keyPress(KeyEvent.VK_CONTROL);
             robot.keyPress(KeyEvent.VK_T);
@@ -251,7 +289,7 @@ public class DesktopActionTool implements JarvisTool {
                 String psSend = combo.replace("ctrl+", "^").replace("alt+", "%").replace("shift+", "+");
                 ProcessBuilder pb = new ProcessBuilder("powershell.exe", "-NoProfile", "-Command",
                         "$ws = New-Object -ComObject WScript.Shell; $ws.SendKeys('" + psSend + "')");
-                pb.start().waitFor();
+                pb.start().waitFor(500, java.util.concurrent.TimeUnit.MILLISECONDS);
             } catch (Exception ignored) {}
         }
     }

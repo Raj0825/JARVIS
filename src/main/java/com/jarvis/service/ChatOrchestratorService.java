@@ -156,32 +156,53 @@ public class ChatOrchestratorService {
                         }
                     }
                 }
-                // 2A. Physical Desktop Actions & Keystrokes ("press enter", "press space", "press send", "send it", "click the button")
-                else if (lowerUser.contains("press enter") || lowerUser.contains("hit enter")
-                        || lowerUser.contains("press space") || lowerUser.contains("hit space")
-                        || lowerUser.contains("press send") || lowerUser.contains("send it") || lowerUser.contains("press compose")
-                        || lowerUser.contains("click button") || lowerUser.contains("click on") || lowerUser.equals("click")
-                        || lowerUser.contains("press tab") || lowerUser.contains("press escape")) {
+                // 2A. Physical Desktop Actions & Keystrokes ("press the send button", "click button", "hit enter", etc.)
+                else if (lowerUser.matches(".*\\b(press|click|hit|tap)\\b.*")
+                        || lowerUser.matches(".*\\b(send)\\b.*\\b(button|email|mail|message|it)\\b.*")
+                        || lowerUser.equals("send") || lowerUser.equals("send it") || lowerUser.equals("click")
+                        || lowerUser.contains("compose button") || lowerUser.contains("send button")
+                        || lowerUser.contains("play button") || lowerUser.contains("pause button")) {
                     log.info("[Orchestrator] Fulfilling Desktop Action request: '{}'", userText);
                     java.util.Optional<com.jarvis.tools.JarvisTool> dtTool = toolRegistry.getTool("desktop_action");
                     if (dtTool.isPresent()) {
                         String act = "press_key";
-                        String key = "enter";
+                        String key = null;
                         String shortcut = null;
+                        String targetWindow = null;
 
-                        if (lowerUser.contains("space")) {
-                            key = "space";
-                        } else if (lowerUser.contains("tab")) {
-                            key = "tab";
-                        } else if (lowerUser.contains("escape") || lowerUser.contains("esc")) {
-                            key = "escape";
-                        } else if (lowerUser.contains("send") || lowerUser.contains("send it")) {
+                        boolean isSend = lowerUser.contains("send") || lowerUser.equals("send it");
+                        boolean isCompose = lowerUser.contains("compose");
+                        boolean isPlayPause = lowerUser.contains("play") || lowerUser.contains("pause");
+                        boolean isSpace = lowerUser.contains("space");
+                        boolean isTab = lowerUser.contains("tab");
+                        boolean isEscape = lowerUser.contains("escape") || lowerUser.contains("esc");
+                        boolean isEnter = lowerUser.contains("enter") || lowerUser.contains("return");
+
+                        if (isSend) {
                             act = "send_shortcut";
                             shortcut = "ctrl+enter";
-                        } else if (lowerUser.contains("compose")) {
+                            targetWindow = "Gmail";
+                        } else if (isCompose) {
                             act = "press_key";
                             key = "c";
-                        } else if (lowerUser.contains("click")) {
+                            targetWindow = "Gmail";
+                        } else if (isPlayPause) {
+                            act = "press_key";
+                            key = "k";
+                            targetWindow = "YouTube";
+                        } else if (isSpace) {
+                            act = "press_key";
+                            key = "space";
+                        } else if (isTab) {
+                            act = "press_key";
+                            key = "tab";
+                        } else if (isEscape) {
+                            act = "press_key";
+                            key = "escape";
+                        } else if (isEnter) {
+                            act = "press_key";
+                            key = "enter";
+                        } else {
                             act = "click_mouse";
                         }
 
@@ -189,11 +210,18 @@ public class ChatOrchestratorService {
                         p.put("action", act);
                         if (key != null) p.put("key", key);
                         if (shortcut != null) p.put("shortcut", shortcut);
+                        if (targetWindow != null) p.put("target_window", targetWindow);
 
                         com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(dtTool.get(), p, conversationId, null);
                         if (res.isSuccess()) {
                             callback.onToolCall("desktop_action", "OK", res);
-                            finalText = "Action executed, " + callSign + ". " + res.getSummary();
+                            if (isSend) {
+                                finalText = "Send command executed, " + callSign + ". Message dispatched.";
+                            } else if (act.equals("click_mouse")) {
+                                finalText = "Button click simulated at current cursor location, " + callSign + ".";
+                            } else {
+                                finalText = "Action executed, " + callSign + ". " + res.getSummary();
+                            }
                         }
                     }
                 }
