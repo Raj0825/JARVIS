@@ -40,6 +40,7 @@ export default function App() {
   const [showWebcam, setShowWebcam] = useState(false);
   const [isMiniMode, setIsMiniMode] = useState(false);
   const [pipWindow, setPipWindow] = useState(null);
+  const [timers, setTimers] = useState([]);
   const hasGreetedRef = useRef(false);
 
   const { speak, stopSpeaking, isSpeakingRef } = useSpeechSynthesis();
@@ -160,8 +161,6 @@ export default function App() {
       setIsMiniMode(true);
     }
   }, [pipWindow]);
-
-  const [timers, setTimers] = useState([]);
 
   // ─── UI action dispatcher (called by tool results) ────────────────────
   const handleUiAction = useCallback((action) => {
