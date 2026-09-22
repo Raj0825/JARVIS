@@ -89,13 +89,6 @@ public class GeminiClient implements LlmClient {
                                 } catch (Exception ignored) {
                                     fc.set("args", mapper.createObjectNode());
                                 }
-                                if (id != null && id.startsWith("ts:")) {
-                                    String sig = id.substring(3);
-                                    part.put("thought_signature", sig);
-                                    part.put("thoughtSignature", sig);
-                                    fc.put("thought_signature", sig);
-                                    fc.put("thoughtSignature", sig);
-                                }
                                 part.set("functionCall", fc);
                                 parts.add(part);
                             }

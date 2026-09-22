@@ -118,6 +118,30 @@ function ActiveTimerCard({ timer, onDismiss }) {
           transition: 'width 1s linear'
         }} />
       </div>
+      {isFinished && (
+        <button
+          onClick={onDismiss}
+          style={{
+            width: '100%',
+            marginTop: 8,
+            padding: '7px 12px',
+            background: 'rgba(255, 30, 80, 0.25)',
+            border: '1px solid var(--c-danger)',
+            borderRadius: 4,
+            color: '#fff',
+            fontFamily: 'Orbitron, monospace',
+            fontSize: 11,
+            cursor: 'pointer',
+            letterSpacing: 1,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            gap: 6
+          }}
+        >
+          🔕 STOP ALARM / DISMISS
+        </button>
+      )}
     </div>
   );
 }

@@ -51,6 +51,51 @@ export default function App() {
     callSign: settings.userCallSign || 'Mr. Raj'
   });
 
+  // ─── Timer & Alarm Expiration Monitor (Audio + Voice + Notification) ──
+  useEffect(() => {
+    if (timers.length === 0) return;
+    const interval = setInterval(() => {
+      const now = Date.now();
+      setTimers(prevTimers => {
+        let hasChanges = false;
+        const updated = prevTimers.map(t => {
+          if (!t.expired && t.endTime <= now) {
+            hasChanges = true;
+            // 1. High-priority alarm audio
+            audioEffects.alarm();
+
+            // 2. Jarvis voice announcement
+            const callSign = settings.userCallSign || 'Mr. Raj';
+            const alertText = `Alarm alert, ${callSign}. Your ${t.label || 'countdown'} timer has elapsed.`;
+            speak(alertText, {
+              pitch: settings.ttsPitch || 0.85,
+              rate: settings.ttsRate || 1.0,
+              voice: settings.ttsVoice !== 'default' ? settings.ttsVoice : null,
+            });
+
+            // 3. Transcript notification
+            addMessage('assistant', `⏱ **[ALARM ELAPSED]** ${t.label.toUpperCase()} countdown completed.`);
+
+            // 4. Desktop system notification
+            try {
+              if ('Notification' in window && Notification.permission === 'granted') {
+                new Notification(`JARVIS // ALARM — ${t.label.toUpperCase()}`, {
+                  body: `Timer has elapsed, ${callSign}.`,
+                  silent: false
+                });
+              }
+            } catch (_) {}
+
+            return { ...t, expired: true };
+          }
+          return t;
+        });
+        return hasChanges ? updated : prevTimers;
+      });
+    }, 1000);
+    return () => clearInterval(interval);
+  }, [timers, speak, settings]);
+
   // ─── Clock ────────────────────────────────────────────────────────────
   useEffect(() => {
     const tick = () => setClock(new Date().toLocaleTimeString('en-GB'));
@@ -130,11 +175,15 @@ export default function App() {
       setTimeout(() => setActiveEffect(null), (action.duration || 2000) + 500);
     }
     if (action.action === 'START_TIMER') {
+      if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().catch(() => {});
+      }
       const newTimer = {
         id: 'timer-' + Date.now(),
         label: action.label || 'Timer',
         duration: action.duration || 300,
         endTime: Date.now() + (action.duration || 300) * 1000,
+        expired: false,
       };
       setTimers(prev => [...prev, newTimer]);
       audioEffects.activate();

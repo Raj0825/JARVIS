@@ -540,9 +540,10 @@ public class ChatOrchestratorService {
                         }
                     }
                 }
-                // 11. Voice Timer Interception
-                else if (lowerUser.contains("set a timer") || lowerUser.contains("set timer") || lowerUser.contains("countdown")) {
-                    log.info("[Orchestrator] Fulfilling Manage Timer request: '{}'", userText);
+                // 11. Voice Timer & Alarm Interception ("set a timer", "set an alarm", "alarm for 5 minutes", "remind me in 10 minutes")
+                else if (lowerUser.contains("set a timer") || lowerUser.contains("set timer") || lowerUser.contains("countdown")
+                        || lowerUser.contains("alarm") || lowerUser.contains("remind me in") || lowerUser.contains("wake me")) {
+                    log.info("[Orchestrator] Fulfilling Manage Timer/Alarm request: '{}'", userText);
                     int secs = 300;
                     java.util.regex.Matcher m = java.util.regex.Pattern.compile("(\\d+)\\s*(minute|min|second|sec|hour)", java.util.regex.Pattern.CASE_INSENSITIVE).matcher(lowerUser);
                     if (m.find()) {
@@ -552,12 +553,17 @@ public class ChatOrchestratorService {
                         else if (unit.startsWith("min")) secs = num * 60;
                         else if (unit.startsWith("hour")) secs = num * 3600;
                     }
+                    String label = "Alarm";
+                    if (lowerUser.contains("for ")) {
+                        String potential = lowerUser.replaceAll("(?i).*?for\\s+", "").replaceAll("(?i)(\\d+\\s*(minute|min|second|sec|hour)|in\\s+\\d+).*$", "").trim();
+                        if (!potential.isBlank() && potential.length() < 30) label = potential;
+                    }
                     java.util.Optional<com.jarvis.tools.JarvisTool> timerTool = toolRegistry.getTool("manage_timer");
                     if (timerTool.isPresent()) {
-                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(timerTool.get(), Map.of("duration_seconds", secs, "label", "Alert"), conversationId, null);
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(timerTool.get(), Map.of("duration_seconds", secs, "label", label), conversationId, null);
                         if (res.isSuccess()) {
                             callback.onToolCall("manage_timer", "OK", res);
-                            finalText = "Timer initialized for " + (secs >= 60 ? (secs / 60) + " minutes" : secs + " seconds") + ", " + callSign + ". Visual countdown active on your HUD.";
+                            finalText = "Alarm and visual countdown initialized for " + (secs >= 60 ? (secs / 60) + " minutes" : secs + " seconds") + ", " + callSign + ". Audio and system alert will fire upon completion.";
                         }
                     }
                 }

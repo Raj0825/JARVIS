@@ -51,5 +51,13 @@ export const audioEffects = {
   /** Tool call ping */
   toolCall() {
     beep(440, 0.07, 0.04, 'square');
+  },
+  /** Pulsing high-priority alarm siren for elapsed timers / alarms */
+  alarm() {
+    [0, 140, 280, 420, 700, 840, 980, 1120].forEach((delay, idx) => {
+      setTimeout(() => {
+        beep(idx % 2 === 0 ? 1040 : 1320, 0.1, 0.12, 'square');
+      }, delay);
+    });
   }
 };
