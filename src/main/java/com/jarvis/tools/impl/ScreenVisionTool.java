@@ -154,8 +154,8 @@ public class ScreenVisionTool implements JarvisTool {
             }
 
             String model = settings.getModel();
-            if (model == null || model.isBlank() || model.contains("mock")) {
-                model = "gemini-2.0-flash";
+            if (model == null || model.isBlank() || model.contains("mock") || model.equals("gemini-2.0-flash") || model.contains("3.5")) {
+                model = "gemini-3.6-flash";
             } else if (model.startsWith("models/")) {
                 model = model.substring(7);
             }
@@ -193,18 +193,17 @@ public class ScreenVisionTool implements JarvisTool {
 
             if (response.statusCode() >= 400) {
                 log.error("[ScreenVision] Gemini Vision error {}: {}", response.statusCode(), response.body());
-                // If model failed with 400 on custom model, try fast fallback with gemini-2.0-flash
-                if (!"gemini-2.0-flash".equals(model)) {
-                    log.info("[ScreenVision] Retrying with gemini-2.0-flash fallback...");
-                    String fallbackUrl = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey;
-                    HttpRequest fallbackReq = HttpRequest.newBuilder()
-                            .uri(URI.create(fallbackUrl))
-                            .header("Content-Type", "application/json")
-                            .timeout(Duration.ofSeconds(25))
-                            .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
-                            .build();
-                    response = client.send(fallbackReq, HttpResponse.BodyHandlers.ofString());
-                }
+                // Fallback to gemini-3.6-flash / gemini-2.5-flash
+                String fallbackModel = !"gemini-3.6-flash".equals(model) ? "gemini-3.6-flash" : "gemini-2.5-flash";
+                log.info("[ScreenVision] Retrying with {} fallback...", fallbackModel);
+                String fallbackUrl = "https://generativelanguage.googleapis.com/v1beta/models/" + fallbackModel + ":generateContent?key=" + apiKey;
+                HttpRequest fallbackReq = HttpRequest.newBuilder()
+                        .uri(URI.create(fallbackUrl))
+                        .header("Content-Type", "application/json")
+                        .timeout(Duration.ofSeconds(25))
+                        .POST(HttpRequest.BodyPublishers.ofString(body.toString()))
+                        .build();
+                response = client.send(fallbackReq, HttpResponse.BodyHandlers.ofString());
             }
 
             if (response.statusCode() >= 400) {

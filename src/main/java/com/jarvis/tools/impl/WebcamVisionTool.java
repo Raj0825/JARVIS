@@ -156,8 +156,8 @@ public class WebcamVisionTool implements JarvisTool {
             String callSign = settings.getUserCallSign() != null ? settings.getUserCallSign() : "Mr. Raj";
             String apiKey = settings.getApiKey();
             String model = settings.getModel();
-            if (model == null || model.isBlank() || model.contains("mock")) {
-                model = "gemini-2.0-flash";
+            if (model == null || model.isBlank() || model.contains("mock") || model.equals("gemini-2.0-flash") || model.contains("3.5")) {
+                model = "gemini-3.6-flash";
             } else if (model.startsWith("models/")) {
                 model = model.substring(7);
             }

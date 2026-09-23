@@ -324,7 +324,7 @@ public class MeetingCopilotTool implements JarvisTool {
                 apiKey = System.getenv("GEMINI_API_KEY");
             }
             if (apiKey != null && !apiKey.isBlank()) {
-                String cleanModel = "gemini-2.0-flash";
+                String cleanModel = "gemini-3.6-flash";
                 String url = "https://generativelanguage.googleapis.com/v1beta/models/" + cleanModel + ":generateContent?key="
                         + apiKey;
 
@@ -403,7 +403,7 @@ public class MeetingCopilotTool implements JarvisTool {
                 return "Gemini API key required for visual screen solving.";
             }
 
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key="
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-3.6-flash:generateContent?key="
                     + apiKey;
 
             ObjectNode body = mapper.createObjectNode();

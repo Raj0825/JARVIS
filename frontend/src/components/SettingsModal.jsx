@@ -70,7 +70,7 @@ export function SettingsModal({ onClose, initialSettings }) {
     MOCK: 'jarvis-mock-v1',
     OPENAI: 'gpt-4o-mini',
     ANTHROPIC: 'claude-3-5-haiku-20241022',
-    GEMINI: 'gemini-2.0-flash',
+    GEMINI: 'gemini-3.6-flash',
     OLLAMA: 'llama3.1',
   };
 
@@ -138,11 +138,11 @@ export function SettingsModal({ onClose, initialSettings }) {
               {settings.provider === 'GEMINI' ? (
                 <select
                   className="form-select"
-                  value={settings.model?.includes('3.5') ? 'gemini-2.0-flash' : (settings.model || 'gemini-2.0-flash')}
+                  value={(!settings.model || settings.model.includes('2.0') || settings.model.includes('3.5')) ? 'gemini-3.6-flash' : settings.model}
                   onChange={e => update('model', e.target.value)}
                 >
-                  <option value="gemini-2.0-flash">gemini-2.0-flash (Recommended — Ultra-Fast & Smart)</option>
-                  <option value="gemini-2.5-flash">gemini-2.5-flash (Next-Gen Reasoning)</option>
+                  <option value="gemini-3.6-flash">gemini-3.6-flash (Recommended — Latest Google Gemini API)</option>
+                  <option value="gemini-2.5-flash">gemini-2.5-flash (Next-Gen Reasoning & Thought)</option>
                   <option value="gemini-1.5-flash">gemini-1.5-flash (Standard High Speed)</option>
                   <option value="gemini-1.5-pro">gemini-1.5-pro (Deep Coding & Logic)</option>
                 </select>

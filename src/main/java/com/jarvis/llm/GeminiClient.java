@@ -158,14 +158,14 @@ public class GeminiClient implements LlmClient {
             genConfig.put("temperature", temperature);
             body.set("generationConfig", genConfig);
 
-            String cleanModel = (model != null && !model.isBlank()) ? model.trim() : "gemini-2.0-flash";
+            String cleanModel = (model != null && !model.isBlank()) ? model.trim() : "gemini-3.6-flash";
             if (cleanModel.startsWith("models/")) {
                 cleanModel = cleanModel.substring(7);
             }
-            if (cleanModel.contains("3.5") || cleanModel.equalsIgnoreCase("gemini-3.5-flash-lite")
+            if (cleanModel.equals("gemini-2.0-flash") || cleanModel.contains("3.5")
+                    || cleanModel.equalsIgnoreCase("gemini-3.5-flash-lite")
                     || cleanModel.equalsIgnoreCase("gemini-flash-lite") || cleanModel.contains("mock")) {
-                log.warn("[Gemini] Model '{}' is not a valid Gemini API model. Auto-correcting to 'gemini-2.0-flash'", cleanModel);
-                cleanModel = "gemini-2.0-flash";
+                cleanModel = "gemini-3.6-flash";
             }
 
             String url = BASE_URL + cleanModel + ":generateContent?key=" + apiKey;
@@ -179,10 +179,14 @@ public class GeminiClient implements LlmClient {
                 log.info("[Gemini] Response received: HTTP {}", response.code());
                 if (!response.isSuccessful() || response.body() == null) {
                     String errBody = response.body() != null ? response.body().string() : "(no body)";
-                    // Transparent self-healing fallback for 404 (model not found) or 400 (thought_signature/invalid model)
-                    if ((response.code() == 404 || response.code() == 400) && !"gemini-2.0-flash".equals(cleanModel)) {
-                        log.warn("[Gemini] Model '{}' failed with HTTP {}. Auto-recovering with 'gemini-2.0-flash'...", cleanModel, response.code());
-                        String fallbackUrl = BASE_URL + "gemini-2.0-flash:generateContent?key=" + apiKey;
+                    log.warn("[Gemini] Model '{}' returned HTTP {}: {}. Initiating multi-model self-healing...", cleanModel, response.code(), errBody);
+
+                    // Multi-model waterfall fallback: gemini-3.6-flash, gemini-2.5-flash, gemini-1.5-flash, gemini-1.5-pro
+                    List<String> fallbacks = List.of("gemini-3.6-flash", "gemini-2.5-flash", "gemini-1.5-flash", "gemini-1.5-pro");
+                    for (String fb : fallbacks) {
+                        if (fb.equals(cleanModel)) continue;
+                        log.info("[Gemini] Auto-recovering with fallback model '{}'...", fb);
+                        String fallbackUrl = BASE_URL + fb + ":generateContent?key=" + apiKey;
                         Request retryReq = new Request.Builder()
                                 .url(fallbackUrl)
                                 .header("Content-Type", "application/json")
@@ -192,10 +196,11 @@ public class GeminiClient implements LlmClient {
                             if (retryResp.isSuccessful() && retryResp.body() != null) {
                                 JsonNode root = mapper.readTree(retryResp.body().string());
                                 JsonNode candidate = root.path("candidates").get(0);
+                                log.info("[Gemini] Successfully recovered using '{}'!", fb);
                                 return parseCandidate(candidate);
                             }
                         } catch (Exception retryEx) {
-                            log.warn("[Gemini] Fallback retry failed: {}", retryEx.getMessage());
+                            log.warn("[Gemini] Fallback retry failed for {}: {}", fb, retryEx.getMessage());
                         }
                     }
                     log.error("Gemini API error {}: {}", response.code(), errBody);

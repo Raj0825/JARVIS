@@ -33,8 +33,8 @@ public class SettingsService {
                 s.setUserCallSign("Mr. Raj");
                 changed = true;
             }
-            if (s.getModel() != null && (s.getModel().contains("3.5") || s.getModel().equalsIgnoreCase("gemini-3.5-flash-lite"))) {
-                s.setModel("gemini-2.0-flash");
+            if (s.getModel() != null && (s.getModel().equals("gemini-2.0-flash") || s.getModel().contains("3.5") || s.getModel().equalsIgnoreCase("gemini-3.5-flash-lite"))) {
+                s.setModel("gemini-3.6-flash");
                 changed = true;
             }
             return changed ? settingsRepository.save(s) : s;
@@ -44,7 +44,7 @@ public class SettingsService {
                     .userId(userId)
                     .userName("Raj Shah")
                     .userCallSign("Mr. Raj")
-                    .model("gemini-2.0-flash")
+                    .model("gemini-3.6-flash")
                     .build();
             return settingsRepository.save(defaults);
         });
@@ -60,8 +60,8 @@ public class SettingsService {
         if (update.getProvider() != null) existing.setProvider(update.getProvider());
         if (update.getModel() != null && !update.getModel().isBlank()) {
             String m = update.getModel().trim();
-            if (m.contains("3.5") || m.equalsIgnoreCase("gemini-3.5-flash-lite")) {
-                m = "gemini-2.0-flash";
+            if (m.equals("gemini-2.0-flash") || m.contains("3.5") || m.equalsIgnoreCase("gemini-3.5-flash-lite")) {
+                m = "gemini-3.6-flash";
             }
             existing.setModel(m);
         }
