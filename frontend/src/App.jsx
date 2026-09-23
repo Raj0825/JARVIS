@@ -13,6 +13,7 @@ import { audioEffects } from './utils/audioEffects';
 import { TelemetryGaugePanel } from './components/TelemetryGaugePanel';
 import { BiometricScannerModal } from './components/BiometricScannerModal';
 import { WebcamViewerModal } from './components/WebcamViewerModal';
+import { MeetingWhispererModal } from './components/MeetingWhispererModal';
 import { useAmbientAlerts } from './hooks/useAmbientAlerts';
 
 // ─── State machine ────────────────────────────────────────────────────────
@@ -38,6 +39,8 @@ export default function App() {
   const [sessionId] = useState(() => 'JV-' + Math.floor(1000 + Math.random() * 9000));
   const [showBiometrics, setShowBiometrics] = useState(false);
   const [showWebcam, setShowWebcam] = useState(false);
+  const [showWhisperer, setShowWhisperer] = useState(false);
+  const [whisperFeed, setWhisperFeed] = useState([]);
   const [isMiniMode, setIsMiniMode] = useState(false);
   const [pipWindow, setPipWindow] = useState(null);
   const [timers, setTimers] = useState([]);
@@ -196,6 +199,17 @@ export default function App() {
     }
     if (action.action === 'SHOW_IMAGE') {
       // Handled via onToolCall
+    }
+    if (action.action === 'OPEN_WHISPERER') {
+      setShowWhisperer(true);
+      audioEffects.activate();
+    }
+    if (action.action === 'UPDATE_WHISPER_FEED') {
+      if (action.item) {
+        setWhisperFeed(prev => [...prev, { ...action.item, id: 'whisper-' + Date.now() }]);
+      }
+      setShowWhisperer(true);
+      audioEffects.reply();
     }
   }, []);
 
@@ -520,6 +534,27 @@ export default function App() {
               📸 OPTICAL CAM
             </button>
             <button
+              className="btn-icon"
+              id="btn-meeting-whisperer"
+              title="Launch The Meeting Whisperer (Live Interview & Meeting Stealth HUD)"
+              onClick={() => setShowWhisperer(true)}
+              style={{
+                border: '1px solid ' + (showWhisperer ? 'var(--c-glow)' : 'var(--c-line)'),
+                color: showWhisperer ? 'var(--c-glow)' : 'var(--c-bright)',
+                background: showWhisperer ? 'rgba(var(--c-glow-rgb), 0.2)' : 'transparent',
+                fontSize: 11,
+                width: 'auto',
+                padding: '0 10px',
+                borderRadius: 2,
+                letterSpacing: 1,
+                fontFamily: 'Rajdhani',
+                fontWeight: 700,
+                boxShadow: showWhisperer ? '0 0 10px rgba(var(--c-glow-rgb), 0.4)' : 'none',
+              }}
+            >
+              🎯 WHISPER COPILOT
+            </button>
+            <button
               className={`btn-icon ${isMiniMode ? 'active' : ''}`}
               id="btn-mini-mode"
               title={isMiniMode ? 'Expand to Full HUD' : 'Switch to Compact HUD'}
@@ -646,6 +681,15 @@ export default function App() {
           addMessage('user', query);
           sendMessage(query, { imageBase64: base64Jpg });
         }}
+      />
+
+      {/* ─── The Meeting Whisperer (Live Interview & Meeting Stealth Co-Pilot) ── */}
+      <MeetingWhispererModal
+        isOpen={showWhisperer}
+        onClose={() => setShowWhisperer(false)}
+        onSend={(text) => handleSend(text)}
+        whisperFeed={whisperFeed}
+        onClearFeed={() => setWhisperFeed([])}
       />
     </>
   );

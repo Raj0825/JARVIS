@@ -384,6 +384,38 @@ public class ChatOrchestratorService {
                         }
                     }
                 }
+                // 2H. Meeting Whisperer & Interview Co-Pilot ("whisperer", "interview copilot", "whisper advice", "solve coding problem", "solve problem on screen", "meeting minutes")
+                else if (lowerUser.contains("whisper") || lowerUser.contains("interview copilot") || lowerUser.contains("meeting copilot")
+                        || lowerUser.contains("solve problem on screen") || lowerUser.contains("solve coding problem") || lowerUser.contains("solve screen problem")
+                        || lowerUser.contains("meeting minutes") || lowerUser.contains("interview mode") || lowerUser.contains("sales mode")) {
+                    log.info("[Orchestrator] Fulfilling Meeting Copilot request: '{}'", userText);
+                    java.util.Optional<com.jarvis.tools.JarvisTool> copilotTool = toolRegistry.getTool("meeting_copilot");
+                    if (copilotTool.isPresent()) {
+                        Map<String, Object> cpParams = new java.util.LinkedHashMap<>();
+                        String act = "whisper_advice";
+                        String mode = "interview";
+                        if (lowerUser.contains("sales")) mode = "sales";
+                        else if (lowerUser.contains("meeting")) mode = "meeting";
+
+                        if (lowerUser.contains("solve") && (lowerUser.contains("screen") || lowerUser.contains("problem") || lowerUser.contains("code"))) {
+                            act = "solve_screen";
+                        } else if (lowerUser.contains("minutes") || (lowerUser.contains("summary") && lowerUser.contains("meeting"))) {
+                            act = "generate_minutes";
+                        } else if (lowerUser.contains("activate") || lowerUser.contains("start") || lowerUser.contains("open") || lowerUser.equals("whisperer") || lowerUser.equals("interview copilot")) {
+                            act = "start_session";
+                        }
+
+                        cpParams.put("action", act);
+                        cpParams.put("mode", mode);
+                        cpParams.put("query", userText.replaceAll("(?i)(whisper advice on|whisper advice|solve problem on screen|solve coding problem|activate interview copilot|start interview copilot|meeting whisperer)", "").trim());
+
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(copilotTool.get(), cpParams, conversationId, null);
+                        if (res.isSuccess()) {
+                            callback.onToolCall("meeting_copilot", "OK", res);
+                            finalText = res.getSummary();
+                        }
+                    }
+                }
                 // 3. Iron Man Protocols ("protocol house party", "party mode", "stealth mode", "morning briefing", "combat ready")
                 else if (lowerUser.contains("protocol") || lowerUser.contains("house party") || lowerUser.contains("party mode")
                         || lowerUser.contains("stealth mode") || lowerUser.contains("morning briefing") || lowerUser.contains("morning protocol")
@@ -745,6 +777,7 @@ public class ChatOrchestratorService {
                 + "- Available tool: 'webcam_vision' captures a photo from the user's laptop webcam and analyzes real-world objects, handwritten notes, components, or room surroundings using Gemini Vision.\n"
                 + "- Available tool: 'whatsapp_action' sends WhatsApp messages via WhatsApp Web/Desktop: opens a chat with recipient phone number or contact and pre-fills message text.\n"
                 + "- Available tool: 'calendar_tool' manages calendar and daily schedule: creates Google Calendar events (action='create_event'), lists agenda (action='list_agenda'), or clears events (action='delete_event').\n"
+                + "- Available tool: 'meeting_copilot' is your covert interview, sales pitch, and meeting teleprompter: whispers crisp talking points (action='whisper_advice'), reads and solves coding/system architecture problems on screen via multimodal vision (action='solve_screen'), and produces executive meeting minutes (action='generate_minutes').\n"
                 + "- Conversational continuity: remember previous topics and conversational pronouns ('them', 'it', 'undo that', 'put them back').\n"
                 + "- Always address " + userName + " respectfully as '" + callSign + "'.";
         messages.add(Map.of("role", "system", "content", sysPrompt));
