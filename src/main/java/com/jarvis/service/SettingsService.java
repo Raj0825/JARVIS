@@ -33,6 +33,10 @@ public class SettingsService {
                 s.setUserCallSign("Mr. Raj");
                 changed = true;
             }
+            if (s.getModel() != null && (s.getModel().contains("3.5") || s.getModel().equalsIgnoreCase("gemini-3.5-flash-lite"))) {
+                s.setModel("gemini-2.0-flash");
+                changed = true;
+            }
             return changed ? settingsRepository.save(s) : s;
         }).orElseGet(() -> {
             log.info("[SettingsService] Creating default settings for user '{}'", userId);
@@ -40,6 +44,7 @@ public class SettingsService {
                     .userId(userId)
                     .userName("Raj Shah")
                     .userCallSign("Mr. Raj")
+                    .model("gemini-2.0-flash")
                     .build();
             return settingsRepository.save(defaults);
         });
@@ -53,7 +58,13 @@ public class SettingsService {
         JarvisSettings existing = getSettings(userId);
 
         if (update.getProvider() != null) existing.setProvider(update.getProvider());
-        if (update.getModel() != null && !update.getModel().isBlank()) existing.setModel(update.getModel());
+        if (update.getModel() != null && !update.getModel().isBlank()) {
+            String m = update.getModel().trim();
+            if (m.contains("3.5") || m.equalsIgnoreCase("gemini-3.5-flash-lite")) {
+                m = "gemini-2.0-flash";
+            }
+            existing.setModel(m);
+        }
         if (update.getApiKey() != null && !update.getApiKey().isBlank() && !update.getApiKey().contains("•")) {
             existing.setApiKey(update.getApiKey().trim());
         }

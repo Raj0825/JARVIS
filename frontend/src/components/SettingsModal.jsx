@@ -135,8 +135,25 @@ export function SettingsModal({ onClose, initialSettings }) {
             )}
             <div className="form-group">
               <label className="form-label">Model</label>
-              <input className="form-input" placeholder={defaultModels[settings.provider]}
-                value={settings.model || ''} onChange={e => update('model', e.target.value)} />
+              {settings.provider === 'GEMINI' ? (
+                <select
+                  className="form-select"
+                  value={settings.model?.includes('3.5') ? 'gemini-2.0-flash' : (settings.model || 'gemini-2.0-flash')}
+                  onChange={e => update('model', e.target.value)}
+                >
+                  <option value="gemini-2.0-flash">gemini-2.0-flash (Recommended — Ultra-Fast & Smart)</option>
+                  <option value="gemini-2.5-flash">gemini-2.5-flash (Next-Gen Reasoning)</option>
+                  <option value="gemini-1.5-flash">gemini-1.5-flash (Standard High Speed)</option>
+                  <option value="gemini-1.5-pro">gemini-1.5-pro (Deep Coding & Logic)</option>
+                </select>
+              ) : (
+                <input
+                  className="form-input"
+                  placeholder={defaultModels[settings.provider]}
+                  value={settings.model || ''}
+                  onChange={e => update('model', e.target.value)}
+                />
+              )}
             </div>
             <div className="form-group">
               <label className="form-label">Temperature — {settings.temperature}</label>

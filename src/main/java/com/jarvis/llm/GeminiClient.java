@@ -162,6 +162,12 @@ public class GeminiClient implements LlmClient {
             if (cleanModel.startsWith("models/")) {
                 cleanModel = cleanModel.substring(7);
             }
+            if (cleanModel.contains("3.5") || cleanModel.equalsIgnoreCase("gemini-3.5-flash-lite")
+                    || cleanModel.equalsIgnoreCase("gemini-flash-lite") || cleanModel.contains("mock")) {
+                log.warn("[Gemini] Model '{}' is not a valid Gemini API model. Auto-correcting to 'gemini-2.0-flash'", cleanModel);
+                cleanModel = "gemini-2.0-flash";
+            }
+
             String url = BASE_URL + cleanModel + ":generateContent?key=" + apiKey;
             Request request = new Request.Builder()
                     .url(url)
@@ -173,9 +179,9 @@ public class GeminiClient implements LlmClient {
                 log.info("[Gemini] Response received: HTTP {}", response.code());
                 if (!response.isSuccessful() || response.body() == null) {
                     String errBody = response.body() != null ? response.body().string() : "(no body)";
-                    // Transparent self-healing fallback for models with strict thought_signature validation
-                    if (response.code() == 400 && errBody.contains("thought_signature") && !"gemini-2.0-flash".equals(cleanModel)) {
-                        log.warn("[Gemini] Model '{}' rejected history with thought_signature error. Retrying with 'gemini-2.0-flash'...", cleanModel);
+                    // Transparent self-healing fallback for 404 (model not found) or 400 (thought_signature/invalid model)
+                    if ((response.code() == 404 || response.code() == 400) && !"gemini-2.0-flash".equals(cleanModel)) {
+                        log.warn("[Gemini] Model '{}' failed with HTTP {}. Auto-recovering with 'gemini-2.0-flash'...", cleanModel, response.code());
                         String fallbackUrl = BASE_URL + "gemini-2.0-flash:generateContent?key=" + apiKey;
                         Request retryReq = new Request.Builder()
                                 .url(fallbackUrl)
