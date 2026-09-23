@@ -27,7 +27,8 @@ import java.util.List;
 
 /**
  * The Meeting Whisperer - Real-Time Interview & Meeting Co-Pilot.
- * Delivers covert teleprompter intelligence for technical interviews, client pitches,
+ * Delivers covert teleprompter intelligence for technical interviews, client
+ * pitches,
  * visual screen problem solving, and automated meeting minutes.
  */
 @Component
@@ -57,28 +58,25 @@ public class MeetingCopilotTool implements JarvisTool {
                         "action", Map.of(
                                 "type", "string",
                                 "enum", List.of("whisper_advice", "solve_screen", "start_session", "generate_minutes"),
-                                "description", "Action to perform: 'whisper_advice' (answer interviewer question), 'solve_screen' (analyze and solve problem on screen), 'start_session' (init co-pilot HUD), or 'generate_minutes'"
-                        ),
+                                "description",
+                                "Action to perform: 'whisper_advice' (answer interviewer question), 'solve_screen' (analyze and solve problem on screen), 'start_session' (init co-pilot HUD), or 'generate_minutes'"),
                         "query", Map.of(
                                 "type", "string",
-                                "description", "The question or statement asked by the interviewer or meeting participant"
-                        ),
+                                "description",
+                                "The question or statement asked by the interviewer or meeting participant"),
                         "mode", Map.of(
                                 "type", "string",
                                 "enum", List.of("interview", "sales", "meeting"),
-                                "description", "Session mode: 'interview' (STAR method & algorithms), 'sales' (objections & value), or 'meeting' (minutes & alignment)"
-                        ),
+                                "description",
+                                "Session mode: 'interview' (STAR method & algorithms), 'sales' (objections & value), or 'meeting' (minutes & alignment)"),
                         "topic", Map.of(
                                 "type", "string",
-                                "description", "Context, company, or target role (e.g. 'Google Senior Backend Engineer', 'Enterprise Client Demo')"
-                        ),
+                                "description",
+                                "Context, company, or target role (e.g. 'Google Senior Backend Engineer', 'Enterprise Client Demo')"),
                         "notes", Map.of(
                                 "type", "string",
-                                "description", "Additional meeting notes or custom context to incorporate"
-                        )
-                ),
-                "required", List.of("action")
-        );
+                                "description", "Additional meeting notes or custom context to incorporate")),
+                "required", List.of("action"));
     }
 
     @Override
@@ -111,20 +109,18 @@ public class MeetingCopilotTool implements JarvisTool {
                 "mode", mode,
                 "topic", topic,
                 "title", title,
-                "status", "ACTIVE"
-        );
+                "status", "ACTIVE");
 
         Map<String, Object> uiAction = Map.of(
                 "action", "OPEN_WHISPERER",
                 "mode", mode,
-                "topic", topic
-        );
+                "topic", topic);
 
         return ToolResult.success(
-                "Meeting Whisperer initialized in " + mode.toUpperCase() + " mode for " + topic + ". Floating teleprompter is ready.",
+                "Meeting Whisperer initialized in " + mode.toUpperCase() + " mode for " + topic
+                        + ". Floating teleprompter is ready.",
                 data,
-                uiAction
-        );
+                uiAction);
     }
 
     private ToolResult handleWhisperAdvice(String question, String mode, String topic) {
@@ -148,14 +144,13 @@ public class MeetingCopilotTool implements JarvisTool {
 
         Map<String, Object> uiAction = Map.of(
                 "action", "UPDATE_WHISPER_FEED",
-                "item", data
-        );
+                "item", data);
 
         return ToolResult.success(
-                "Whisper advice ready for question: \"" + (question.length() > 40 ? question.substring(0, 40) + "..." : question) + "\"",
+                "Whisper advice ready for question: \""
+                        + (question.length() > 40 ? question.substring(0, 40) + "..." : question) + "\"",
                 data,
-                uiAction
-        );
+                uiAction);
     }
 
     private ToolResult handleSolveScreen(String query, String mode) {
@@ -194,20 +189,22 @@ public class MeetingCopilotTool implements JarvisTool {
 
         Map<String, Object> uiAction = Map.of(
                 "action", "UPDATE_WHISPER_FEED",
-                "item", data
-        );
+                "item", data);
 
         return ToolResult.success(
                 "Screen problem analyzed. Stealth solution published to your teleprompter HUD.",
                 data,
-                uiAction
-        );
+                uiAction);
     }
 
     private ToolResult handleGenerateMinutes(String query, String notes, String topic) {
         String prompt = "You are JARVIS creating an executive meeting briefing and follow-up email.\n"
                 + "Context: " + (topic != null ? topic : "Meeting Discussion") + "\n"
-                + "Meeting Notes & Highlights:\n" + (notes != null ? notes : (query != null ? query : "Discussion regarding project milestones, deliverables, and timeline.")) + "\n\n"
+                + "Meeting Notes & Highlights:\n"
+                + (notes != null ? notes
+                        : (query != null ? query
+                                : "Discussion regarding project milestones, deliverables, and timeline."))
+                + "\n\n"
                 + "Produce:\n"
                 + "1. EXECUTIVE SUMMARY (3 sentences max)\n"
                 + "2. KEY DECISIONS & AGREEMENTS\n"
@@ -223,14 +220,12 @@ public class MeetingCopilotTool implements JarvisTool {
 
         Map<String, Object> uiAction = Map.of(
                 "action", "UPDATE_WHISPER_FEED",
-                "item", data
-        );
+                "item", data);
 
         return ToolResult.success(
                 "Executive meeting minutes and follow-up email draft generated.",
                 data,
-                uiAction
-        );
+                uiAction);
     }
 
     private String buildAdvicePrompt(String question, String mode, String topic) {
@@ -279,7 +274,8 @@ public class MeetingCopilotTool implements JarvisTool {
             int w = original.getWidth();
             int h = original.getHeight();
             double scale = Math.min((double) maxWidth / w, (double) maxHeight / h);
-            if (scale > 1.0) scale = 1.0;
+            if (scale > 1.0)
+                scale = 1.0;
 
             int targetW = (int) (w * scale);
             int targetH = (int) (h * scale);
@@ -310,7 +306,8 @@ public class MeetingCopilotTool implements JarvisTool {
                 return "Gemini API key is required to generate real-time whisper advice.";
             }
 
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey;
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key="
+                    + apiKey;
 
             ObjectNode body = mapper.createObjectNode();
             ArrayNode contents = mapper.createArrayNode();
@@ -358,7 +355,8 @@ public class MeetingCopilotTool implements JarvisTool {
                 return "Gemini API key required for visual screen solving.";
             }
 
-            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey;
+            String url = "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key="
+                    + apiKey;
 
             ObjectNode body = mapper.createObjectNode();
             ArrayNode contents = mapper.createArrayNode();

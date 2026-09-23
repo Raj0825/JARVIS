@@ -41,6 +41,7 @@ export default function App() {
   const [showWebcam, setShowWebcam] = useState(false);
   const [showWhisperer, setShowWhisperer] = useState(false);
   const [whisperFeed, setWhisperFeed] = useState([]);
+  const [isWhispererLiveEar, setIsWhispererLiveEar] = useState(false);
   const [isMiniMode, setIsMiniMode] = useState(false);
   const [pipWindow, setPipWindow] = useState(null);
   const [timers, setTimers] = useState([]);
@@ -98,7 +99,7 @@ export default function App() {
       });
     }, 1000);
     return () => clearInterval(interval);
-  }, [timers, speak, settings]);
+  }, [timers.length > 0, speak, settings]);
 
   // ─── Clock ────────────────────────────────────────────────────────────
   useEffect(() => {
@@ -271,7 +272,11 @@ export default function App() {
     useSpeechRecognition({
       onTranscript: (text) => {
         setReactorState('idle');
-        handleSend(text);
+        if (showWhisperer && isWhispererLiveEar) {
+          handleSend(`Jarvis whisper advice on: ${text}`);
+        } else {
+          handleSend(text);
+        }
       },
       onWakeWord: () => {
         audioEffects.activate();
@@ -686,10 +691,24 @@ export default function App() {
       {/* ─── The Meeting Whisperer (Live Interview & Meeting Stealth Co-Pilot) ── */}
       <MeetingWhispererModal
         isOpen={showWhisperer}
-        onClose={() => setShowWhisperer(false)}
+        onClose={() => {
+          setShowWhisperer(false);
+          setIsWhispererLiveEar(false);
+        }}
         onSend={(text) => handleSend(text)}
         whisperFeed={whisperFeed}
         onClearFeed={() => setWhisperFeed([])}
+        isLiveListening={isWhispererLiveEar}
+        onToggleLiveListening={() => {
+          setIsWhispererLiveEar(prev => {
+            const next = !prev;
+            if (next) {
+              startListening();
+              audioEffects.activate();
+            }
+            return next;
+          });
+        }}
       />
     </>
   );

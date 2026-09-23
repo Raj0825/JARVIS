@@ -5,18 +5,18 @@ export function MeetingWhispererModal({
   onClose,
   onSend,
   whisperFeed = [],
-  onClearFeed
+  onClearFeed,
+  isLiveListening = false,
+  onToggleLiveListening
 }) {
   const [mode, setMode] = useState('interview'); // 'interview' | 'sales' | 'meeting'
   const [topic, setTopic] = useState('Senior Software Engineer & Architecture');
   const [queryInput, setQueryInput] = useState('');
   const [opacity, setOpacity] = useState(0.92);
   const [isMinimized, setIsMinimized] = useState(false);
-  const [isLiveListening, setIsLiveListening] = useState(false);
   const [copiedId, setCopiedId] = useState(null);
 
   const feedBottomRef = useRef(null);
-  const recognitionRef = useRef(null);
 
   // Auto-scroll feed to latest
   useEffect(() => {
@@ -25,51 +25,6 @@ export function MeetingWhispererModal({
     }
   }, [whisperFeed, isMinimized]);
 
-  // Live Speech Recognition for Interviewer Voice
-  useEffect(() => {
-    const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SR) return;
-
-    if (isLiveListening) {
-      const rec = new SR();
-      rec.continuous = true;
-      rec.interimResults = false;
-      rec.lang = 'en-US';
-
-      rec.onresult = (e) => {
-        const last = e.results[e.results.length - 1];
-        if (last && last.isFinal) {
-          const text = last[0].transcript.trim();
-          if (text.length > 5) {
-            handleAskWhisperer(text);
-          }
-        }
-      };
-
-      rec.onerror = () => {};
-      rec.onend = () => {
-        if (isLiveListening) {
-          try { rec.start(); } catch (_) {}
-        }
-      };
-
-      try {
-        rec.start();
-        recognitionRef.current = rec;
-      } catch (_) {}
-    } else {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-        recognitionRef.current = null;
-      }
-    }
-
-    return () => {
-      if (recognitionRef.current) {
-        recognitionRef.current.stop();
-      }
-    };
-  }, [isLiveListening]);
 
   if (!isOpen) return null;
 
@@ -195,7 +150,7 @@ export function MeetingWhispererModal({
 
             <button
               className={`tactical-btn ear-btn ${isLiveListening ? 'listening-active' : ''}`}
-              onClick={() => setIsLiveListening(!isLiveListening)}
+              onClick={onToggleLiveListening}
               title="Continuous microphone listening for caller questions"
             >
               {isLiveListening ? '🔴 LIVE EAR: LISTENING...' : '🎙 ACTIVATE LIVE EAR'}
