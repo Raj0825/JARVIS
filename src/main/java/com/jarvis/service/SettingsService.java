@@ -33,6 +33,13 @@ public class SettingsService {
                 s.setUserCallSign("Mr. Raj");
                 changed = true;
             }
+            if (s.getProvider() == null || s.getProvider() == JarvisSettings.LlmProvider.MOCK) {
+                s.setProvider(JarvisSettings.LlmProvider.GEMINI);
+                if (s.getModel() == null || s.getModel().contains("mock")) {
+                    s.setModel("gemini-3.6-flash");
+                }
+                changed = true;
+            }
             if (s.getModel() != null && (s.getModel().equals("gemini-2.0-flash") || s.getModel().contains("3.5") || s.getModel().equalsIgnoreCase("gemini-3.5-flash-lite"))) {
                 s.setModel("gemini-3.6-flash");
                 changed = true;
@@ -44,7 +51,9 @@ public class SettingsService {
                     .userId(userId)
                     .userName("Raj Shah")
                     .userCallSign("Mr. Raj")
+                    .provider(JarvisSettings.LlmProvider.GEMINI)
                     .model("gemini-3.6-flash")
+                    .allowWrites(true)
                     .build();
             return settingsRepository.save(defaults);
         });
@@ -67,20 +76,24 @@ public class SettingsService {
         }
         if (update.getApiKey() != null && !update.getApiKey().isBlank() && !update.getApiKey().contains("•")) {
             existing.setApiKey(update.getApiKey().trim());
+            if (existing.getProvider() == null || existing.getProvider() == JarvisSettings.LlmProvider.MOCK) {
+                existing.setProvider(JarvisSettings.LlmProvider.GEMINI);
+            }
         }
         if (update.getApiBaseUrl() != null) existing.setApiBaseUrl(update.getApiBaseUrl());
-        if (update.getTemperature() > 0) existing.setTemperature(update.getTemperature());
+        if (update.getTemperature() != null && update.getTemperature() > 0) existing.setTemperature(update.getTemperature());
         if (update.getSystemPrompt() != null && !update.getSystemPrompt().isBlank()) existing.setSystemPrompt(update.getSystemPrompt());
         if (update.getTtsVoice() != null) existing.setTtsVoice(update.getTtsVoice());
-        if (update.getTtsPitch() > 0) existing.setTtsPitch(update.getTtsPitch());
-        if (update.getTtsRate() > 0) existing.setTtsRate(update.getTtsRate());
+        if (update.getTtsPitch() != null && update.getTtsPitch() > 0) existing.setTtsPitch(update.getTtsPitch());
+        if (update.getTtsRate() != null && update.getTtsRate() > 0) existing.setTtsRate(update.getTtsRate());
         if (update.getSttLanguage() != null && !update.getSttLanguage().isBlank()) existing.setSttLanguage(update.getSttLanguage());
         if (update.getTheme() != null) existing.setTheme(update.getTheme());
         if (update.getUserName() != null && !update.getUserName().isBlank()) existing.setUserName(update.getUserName());
         if (update.getUserCallSign() != null && !update.getUserCallSign().isBlank()) existing.setUserCallSign(update.getUserCallSign());
 
-        // allowWrites is a boolean — always update it from the request
-        existing.setAllowWrites(update.isAllowWrites());
+        if (update.getAllowWrites() != null) {
+            existing.setAllowWrites(update.getAllowWrites());
+        }
 
         JarvisSettings saved = settingsRepository.save(existing);
         log.info("[SettingsService] Settings updated for user '{}': provider={}, model={}, allowWrites={}",

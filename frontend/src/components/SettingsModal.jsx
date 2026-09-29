@@ -1,26 +1,63 @@
 import { useEffect, useState } from 'react';
 
-export function SettingsModal({ onClose, initialSettings }) {
-  const [settings, setSettings] = useState({
-    provider: 'MOCK',
-    model: '',
-    apiKey: '',
-    apiBaseUrl: '',
-    temperature: 0.7,
-    systemPrompt: '',
-    allowWrites: false,
-    ttsVoice: 'default',
-    ttsPitch: 0.85,
-    ttsRate: 1.0,
-    sttLanguage: 'en-US',
-    theme: 'cyan',
-    ...initialSettings,
+export function SettingsModal({ onClose, initialSettings, onSave }) {
+  const [settings, setSettings] = useState(() => {
+    const base = {
+      provider: 'GEMINI',
+      model: 'gemini-3.6-flash',
+      apiKey: '',
+      apiBaseUrl: '',
+      temperature: 0.7,
+      systemPrompt: 'You are Jarvis, an intelligent AI assistant created for a holographic personal assistant interface. Respond concisely and helpfully. When using tools, be precise about the action you are taking. Address the user respectfully.',
+      allowWrites: true,
+      ttsVoice: 'default',
+      ttsPitch: 0.85,
+      ttsRate: 1.0,
+      sttLanguage: 'en-IN',
+      theme: 'cyan',
+    };
+    try {
+      const cached = localStorage.getItem('jarvis_cached_settings');
+      if (cached) Object.assign(base, JSON.parse(cached));
+    } catch (_) {}
+    if (initialSettings && Object.keys(initialSettings).length > 0) {
+      Object.assign(base, initialSettings);
+    }
+    return base;
   });
   const [apiKeyInput, setApiKeyInput] = useState('');
   const [auditLog, setAuditLog] = useState([]);
   const [tab, setTab] = useState('llm');
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
+  const [saveError, setSaveError] = useState(null);
+
+  // Re-sync whenever initialSettings updates from parent
+  useEffect(() => {
+    if (initialSettings && Object.keys(initialSettings).length > 0) {
+      setSettings(prev => ({ ...prev, ...initialSettings }));
+    }
+  }, [initialSettings]);
+
+  // Fetch latest settings directly from backend server when modal mounts
+  useEffect(() => {
+    fetch('/api/settings')
+      .then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(s => {
+        if (s && s.provider) {
+          setSettings(prev => ({ ...prev, ...s }));
+          try {
+            localStorage.setItem('jarvis_cached_settings', JSON.stringify(s));
+          } catch (_) {}
+        }
+      })
+      .catch(err => {
+        console.warn('[SettingsModal] Server settings fetch note:', err.message);
+      });
+  }, []);
 
   useEffect(() => {
     if (tab === 'audit') {
@@ -35,6 +72,7 @@ export function SettingsModal({ onClose, initialSettings }) {
 
   const save = async () => {
     setSaving(true);
+    setSaveError(null);
     try {
       const payload = { ...settings };
       if (apiKeyInput.trim()) {
@@ -48,18 +86,31 @@ export function SettingsModal({ onClose, initialSettings }) {
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload),
       });
+
+      if (!res.ok) {
+        throw new Error(`Server returned HTTP ${res.status}`);
+      }
+
       const updated = await res.json();
       if (updated) {
         setSettings(s => ({ ...s, ...updated }));
+        try {
+          localStorage.setItem('jarvis_cached_settings', JSON.stringify(updated));
+        } catch (_) {}
         onSave?.(updated);
       }
       setSaved(true);
       setApiKeyInput('');
-      setTimeout(() => setSaved(false), 2000);
+      setTimeout(() => setSaved(false), 3000);
       // Apply theme immediately
       document.documentElement.setAttribute('data-theme', settings.theme || 'cyan');
     } catch (e) {
       console.error('Failed to save settings', e);
+      setSaveError(e.message || 'Failed to connect to backend server');
+      // Still cache user changes in browser localStorage so nothing is lost
+      try {
+        localStorage.setItem('jarvis_cached_settings', JSON.stringify(settings));
+      } catch (_) {}
     } finally {
       setSaving(false);
     }
@@ -95,6 +146,17 @@ export function SettingsModal({ onClose, initialSettings }) {
           ))}
         </div>
 
+        {saveError && (
+          <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(255, 59, 59, 0.15)', border: '1px solid var(--c-danger)', color: 'var(--c-danger)', fontSize: 12, borderRadius: 2 }}>
+            ⚠ Error saving to backend: {saveError}. Changes are cached locally in your browser.
+          </div>
+        )}
+        {saved && (
+          <div style={{ marginTop: 10, padding: '8px 12px', background: 'rgba(109, 255, 176, 0.15)', border: '1px solid var(--c-ok)', color: 'var(--c-ok)', fontSize: 12, borderRadius: 2 }}>
+            ✓ Configuration & API key saved successfully and synchronized with neural core!
+          </div>
+        )}
+
         {/* ─── LLM tab ─────────────────────────────────────────────────────── */}
         {tab === 'llm' && (
           <>
@@ -110,19 +172,33 @@ export function SettingsModal({ onClose, initialSettings }) {
                 <div className="form-group">
                   <label className="form-label" style={{ display: 'flex', justifyContent: 'space-between' }}>
                     <span>API Key</span>
-                    {settings.apiKey && (
-                      <span style={{ color: 'var(--c-glow)', fontSize: 10, textTransform: 'uppercase' }}>
-                        ✓ Key Saved On Server
+                    {settings.apiKey ? (
+                      <span style={{ color: 'var(--c-ok)', fontSize: 10, textTransform: 'uppercase', fontWeight: 600 }}>
+                        ✓ Key Active on Server
+                      </span>
+                    ) : (
+                      <span style={{ color: 'var(--c-accent)', fontSize: 10 }}>
+                        Key Required
                       </span>
                     )}
                   </label>
                   <input
                     className="form-input"
                     type="password"
-                    placeholder={settings.apiKey ? "•••••••••••• (enter new key to replace)" : "Enter API key..."}
+                    placeholder={settings.apiKey ? "•••••••••••• (key saved — enter here to update)" : "Paste your API key here..."}
                     value={apiKeyInput}
                     onChange={e => setApiKeyInput(e.target.value)}
                   />
+                  {settings.apiKey && !apiKeyInput && (
+                    <div style={{ fontSize: 10, color: 'var(--c-mid)', marginTop: 4 }}>
+                      ✓ A valid API key is stored securely on the server. Enter a new key only if you wish to change it.
+                    </div>
+                  )}
+                  {apiKeyInput && (
+                    <div style={{ fontSize: 10, color: 'var(--c-glow)', marginTop: 4 }}>
+                      ✎ New key entered — click [SAVE CONFIGURATION] below to activate it.
+                    </div>
+                  )}
                 </div>
                 {(settings.provider === 'OPENAI' || settings.provider === 'OLLAMA') && (
                   <div className="form-group">

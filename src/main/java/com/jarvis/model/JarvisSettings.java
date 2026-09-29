@@ -39,24 +39,24 @@ public class JarvisSettings {
     private String apiBaseUrl;
 
     @Builder.Default
-    private double temperature = 0.7;
+    private Double temperature = 0.7;
 
     @Builder.Default
     private String systemPrompt = "You are Jarvis, an intelligent AI assistant created for a holographic personal assistant interface. Respond concisely and helpfully. When using tools, be precise about the action you are taking. Address the user respectfully.";
 
     /** Whether effectful (write) tools are permitted */
     @Builder.Default
-    private boolean allowWrites = false;
+    private Boolean allowWrites = true;
 
     /** TTS voice name (browser speechSynthesis voiceURI or 'default') */
     @Builder.Default
     private String ttsVoice = "default";
 
     @Builder.Default
-    private double ttsPitch = 0.85;
+    private Double ttsPitch = 0.85;
 
     @Builder.Default
-    private double ttsRate = 1.0;
+    private Double ttsRate = 1.0;
 
     @Builder.Default
     private String sttLanguage = "en-US";
@@ -69,4 +69,8 @@ public class JarvisSettings {
 
     @Builder.Default
     private String userCallSign = "Mr. Raj";
+
+    public boolean isAllowWrites() {
+        return Boolean.TRUE.equals(allowWrites);
+    }
 }

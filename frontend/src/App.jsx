@@ -33,7 +33,21 @@ export default function App() {
   const [isThinking, setIsThinking] = useState(false);
   const [textValue, setTextValue] = useState('');
   const [showSettings, setShowSettings] = useState(false);
-  const [settings, setSettings] = useState({});
+  const [settings, setSettings] = useState(() => {
+    const fallback = {
+      provider: 'GEMINI',
+      model: 'gemini-3.6-flash',
+      userCallSign: 'Mr. Raj',
+      userName: 'Raj Shah',
+      allowWrites: true,
+      theme: 'cyan',
+    };
+    try {
+      const cached = localStorage.getItem('jarvis_cached_settings');
+      if (cached) return { ...fallback, ...JSON.parse(cached) };
+    } catch (_) {}
+    return fallback;
+  });
   const [activeEffect, setActiveEffect] = useState(null);
   const [clock, setClock] = useState('');
   const [sessionId] = useState(() => 'JV-' + Math.floor(1000 + Math.random() * 9000));
@@ -111,10 +125,23 @@ export default function App() {
 
   // ─── Load settings on mount ───────────────────────────────────────────
   useEffect(() => {
-    fetch('/api/settings').then(r => r.json()).then(s => {
-      setSettings(s);
-      document.documentElement.setAttribute('data-theme', s.theme || 'cyan');
-    }).catch(() => {});
+    fetch('/api/settings')
+      .then(r => {
+        if (!r.ok) throw new Error('HTTP ' + r.status);
+        return r.json();
+      })
+      .then(s => {
+        if (s && s.provider) {
+          setSettings(prev => ({ ...prev, ...s }));
+          try {
+            localStorage.setItem('jarvis_cached_settings', JSON.stringify(s));
+          } catch (_) {}
+          document.documentElement.setAttribute('data-theme', s.theme || 'cyan');
+        }
+      })
+      .catch(err => {
+        console.warn('[Jarvis] Could not sync settings with backend:', err.message);
+      });
   }, []);
 
   // ─── Picture-in-Picture Desktop Window ──────────────────────────────
@@ -619,12 +646,24 @@ export default function App() {
       {showSettings && (
         <SettingsModal
           initialSettings={settings}
+          onSave={(updated) => {
+            setSettings(updated);
+            try {
+              localStorage.setItem('jarvis_cached_settings', JSON.stringify(updated));
+            } catch (_) {}
+            document.documentElement.setAttribute('data-theme', updated.theme || 'cyan');
+          }}
           onClose={() => {
             setShowSettings(false);
             // Reload settings
             fetch('/api/settings').then(r => r.json()).then(s => {
-              setSettings(s);
-              document.documentElement.setAttribute('data-theme', s.theme || 'cyan');
+              if (s && s.provider) {
+                setSettings(s);
+                try {
+                  localStorage.setItem('jarvis_cached_settings', JSON.stringify(s));
+                } catch (_) {}
+                document.documentElement.setAttribute('data-theme', s.theme || 'cyan');
+              }
             }).catch(() => {});
           }}
         />
