@@ -61,12 +61,21 @@ export default function App() {
   const [timers, setTimers] = useState([]);
   const hasGreetedRef = useRef(false);
 
+  // ─── Operational Refs & Core Message Dispatcher ───────────────────────
+  const addMessage = useCallback((role, content, toolName = null, isError = false) => {
+    setMessages(prev => [...prev, { id: mkId(), role, content, toolName, isError }]);
+  }, []);
+
+  const sendMessageRef = useRef(null);
+  const handleUiActionRef = useRef(null);
+  const handleSendRef = useRef(null);
+
   const { speak, stopSpeaking, isSpeakingRef } = useSpeechSynthesis();
 
   // ─── Ambient Telemetry & Battery Proactive Alerts ─────────────────────
   useAmbientAlerts({
     speak,
-    addMessage: (role, content) => addMessage(role, content),
+    addMessage,
     callSign: settings.userCallSign || 'Mr. Raj'
   });
 
@@ -218,14 +227,16 @@ export default function App() {
       const base64 = dataUrl.split(',')[1];
 
       addMessage('user', `🖥 [Screen Capture]: ${query}`);
-      sendMessage(query, { imageBase64: base64 });
+      if (sendMessageRef.current) {
+        sendMessageRef.current(query, { imageBase64: base64 });
+      }
     } catch (err) {
       console.warn('[ScreenCapture] Display capture cancelled or failed:', err);
       if (err.name !== 'NotAllowedError') {
         addMessage('assistant', 'Display capture could not be initiated.');
       }
     }
-  }, [sendMessage]);
+  }, [addMessage]);
 
   // ─── UI action dispatcher (called by tool results) ────────────────────
   const handleUiAction = useCallback((action) => {
@@ -276,7 +287,8 @@ export default function App() {
       setShowWhisperer(true);
       audioEffects.reply();
     }
-  }, []);
+  }, [captureScreen]);
+  handleUiActionRef.current = handleUiAction;
 
   // ─── WebSocket ────────────────────────────────────────────────────────
   const { status: wsStatus, sendMessage, newConversation, reconnect } = useJarvisSocket({
@@ -302,7 +314,7 @@ export default function App() {
         const data = msg.data;
         setHudCards(prev => [...prev, { ...data, tool: msg.tool, summary: msg.summary }]);
       }
-      if (msg.uiAction) handleUiAction(msg.uiAction);
+      if (msg.uiAction && handleUiActionRef.current) handleUiActionRef.current(msg.uiAction);
     },
     onReply: (text) => {
       setIsThinking(false);
@@ -331,6 +343,7 @@ export default function App() {
       audioEffects.error();
     },
   });
+  sendMessageRef.current = sendMessage;
 
   // ─── Speech Recognition ───────────────────────────────────────────────
   const { isListening, isSupported, startListening, stopListening, toggleWakeWordMode, wakeWordMode } =
@@ -338,9 +351,9 @@ export default function App() {
       onTranscript: (text) => {
         setReactorState('idle');
         if (showWhisperer && isWhispererLiveEar) {
-          handleSend(`Jarvis whisper advice on: ${text}`);
+          if (handleSendRef.current) handleSendRef.current(`Jarvis whisper advice on: ${text}`);
         } else {
-          handleSend(text);
+          if (handleSendRef.current) handleSendRef.current(text);
         }
       },
       onWakeWord: () => {
@@ -358,11 +371,6 @@ export default function App() {
     if (isListening) setReactorState('listening');
     else if (reactorState === 'listening') setReactorState('idle');
   }, [isListening]);
-
-  // ─── Message helpers ──────────────────────────────────────────────────
-  const addMessage = (role, content, toolName = null, isError = false) => {
-    setMessages(prev => [...prev, { id: mkId(), role, content, toolName, isError }]);
-  };
 
   // ─── Send handler ─────────────────────────────────────────────────────
   const handleSend = useCallback((text) => {
@@ -386,8 +394,9 @@ export default function App() {
       }
     }
 
-    sendMessage(trimmed);
-  }, [textValue, sendMessage, stopSpeaking, isSpeakingRef]);
+    if (sendMessageRef.current) sendMessageRef.current(trimmed);
+  }, [textValue, stopSpeaking, isSpeakingRef, handleLaunchPip, pipWindow, addMessage]);
+  handleSendRef.current = handleSend;
 
   // ─── Mic toggle ───────────────────────────────────────────────────────
   const toggleMic = useCallback(() => {
