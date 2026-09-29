@@ -4,7 +4,7 @@ export function SettingsModal({ onClose, initialSettings, onSave }) {
   const [settings, setSettings] = useState(() => {
     const base = {
       provider: 'GEMINI',
-      model: 'gemini-3.6-flash',
+      model: 'gemini-1.5-flash',
       apiKey: '',
       apiBaseUrl: '',
       temperature: 0.7,
@@ -214,13 +214,12 @@ export function SettingsModal({ onClose, initialSettings, onSave }) {
               {settings.provider === 'GEMINI' ? (
                 <select
                   className="form-select"
-                  value={(!settings.model || settings.model.includes('2.0') || settings.model.includes('3.5')) ? 'gemini-3.6-flash' : settings.model}
+                  value={(!settings.model || settings.model.includes('2.0') || settings.model.includes('3.5') || settings.model === 'gemini-2.5-flash') ? 'gemini-1.5-flash' : settings.model}
                   onChange={e => update('model', e.target.value)}
                 >
-                  <option value="gemini-3.6-flash">gemini-3.6-flash (Recommended — Latest Google Gemini API)</option>
-                  <option value="gemini-2.5-flash">gemini-2.5-flash (Next-Gen Reasoning & Thought)</option>
-                  <option value="gemini-1.5-flash">gemini-1.5-flash (Standard High Speed)</option>
+                  <option value="gemini-1.5-flash">gemini-1.5-flash (Recommended — 1,500 Requests/Day Free Tier)</option>
                   <option value="gemini-1.5-pro">gemini-1.5-pro (Deep Coding & Logic)</option>
+                  <option value="gemini-3.6-flash">gemini-3.6-flash (Preview — Strict 20 Requests/Day Quota)</option>
                 </select>
               ) : (
                 <input
