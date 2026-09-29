@@ -110,13 +110,19 @@ public class ChatOrchestratorService {
 
                 // 1. Screen Vision Interception
                 if (lowerUser.contains("look at my screen") || lowerUser.contains("what is on my screen")
-                        || lowerUser.contains("read my screen") || lowerUser.contains("see my screen") || lowerUser.contains("check my screen")) {
+                        || lowerUser.contains("read my screen") || lowerUser.contains("see my screen") || lowerUser.contains("check my screen")
+                        || lowerUser.contains("scan my screen") || lowerUser.contains("analyze my screen") || lowerUser.contains("screen capture")) {
                     log.info("[Orchestrator] Fulfilling Screen Vision request");
                     java.util.Optional<com.jarvis.tools.JarvisTool> visionTool = toolRegistry.getTool("screen_vision");
                     if (visionTool.isPresent()) {
-                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(visionTool.get(), Map.of("question", userText), conversationId, null);
-                        if (res.isSuccess()) {
-                            callback.onToolCall("screen_vision", "OK", res);
+                        Map<String, Object> visionParams = new java.util.HashMap<>();
+                        visionParams.put("question", userText);
+                        if (imageBase64 != null && !imageBase64.isBlank()) {
+                            visionParams.put("image_base64", imageBase64);
+                        }
+                        com.jarvis.tools.ToolResult res = permissionGate.checkAndExecute(visionTool.get(), visionParams, conversationId, null);
+                        callback.onToolCall("screen_vision", res.isSuccess() ? "OK" : "DENIED", res);
+                        if (res.getSummary() != null && !res.getSummary().isBlank()) {
                             finalText = res.getSummary();
                         }
                     }
@@ -689,7 +695,8 @@ public class ChatOrchestratorService {
                         result = ToolResult.failure("Unknown tool: " + toolCall.getName());
                     } else {
                         Map<String, Object> params = parseArgs(toolCall.getArgumentsJson());
-                        if (toolCall.getName().equals("webcam_vision") && imageBase64 != null && !params.containsKey("image_base64")) {
+                        if ((toolCall.getName().equals("webcam_vision") || toolCall.getName().equals("screen_vision"))
+                                && imageBase64 != null && !params.containsKey("image_base64")) {
                             params = new java.util.LinkedHashMap<>(params);
                             params.put("image_base64", imageBase64);
                         }

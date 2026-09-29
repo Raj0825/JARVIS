@@ -193,9 +193,46 @@ export default function App() {
     }
   }, [pipWindow]);
 
+  // ─── Direct Optical Display Capture (Full Resolution Browser Screen Share) ──
+  const captureScreen = useCallback(async (query = 'Analyze what is displayed on my screen in detail and describe any code, errors, or active windows.') => {
+    try {
+      audioEffects.scan();
+      const stream = await navigator.mediaDevices.getDisplayMedia({
+        video: { cursor: 'always' },
+        audio: false,
+      });
+      const video = document.createElement('video');
+      video.srcObject = stream;
+      await video.play();
+
+      const canvas = document.createElement('canvas');
+      canvas.width = video.videoWidth || 1920;
+      canvas.height = video.videoHeight || 1080;
+      const ctx = canvas.getContext('2d');
+      ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+
+      // Stop stream tracks immediately
+      stream.getTracks().forEach(t => t.stop());
+
+      const dataUrl = canvas.toDataURL('image/jpeg', 0.85);
+      const base64 = dataUrl.split(',')[1];
+
+      addMessage('user', `🖥 [Screen Capture]: ${query}`);
+      sendMessage(query, { imageBase64: base64 });
+    } catch (err) {
+      console.warn('[ScreenCapture] Display capture cancelled or failed:', err);
+      if (err.name !== 'NotAllowedError') {
+        addMessage('assistant', 'Display capture could not be initiated.');
+      }
+    }
+  }, [sendMessage]);
+
   // ─── UI action dispatcher (called by tool results) ────────────────────
   const handleUiAction = useCallback((action) => {
     if (!action) return;
+    if (action.action === 'CAPTURE_SCREEN') {
+      captureScreen(action.question || 'Analyze what is displayed on my screen in detail.');
+    }
     if (action.action === 'SET_THEME') {
       document.documentElement.setAttribute('data-theme', action.theme);
       setSettings(s => ({ ...s, theme: action.theme }));
@@ -536,6 +573,15 @@ export default function App() {
               style={{ color: 'var(--c-glow)' }}
             >
               📸 OPTICAL CAM
+            </button>
+            <button
+              className="btn-icon btn-topbar-action"
+              id="btn-scan-screen"
+              title="Capture & Analyze Workspace Desktop Screen"
+              onClick={() => captureScreen()}
+              style={{ color: 'var(--c-glow)', border: '1px solid rgba(var(--c-glow-rgb), 0.4)' }}
+            >
+              🖥 SCAN SCREEN
             </button>
             <button
               className="btn-icon btn-topbar-action"

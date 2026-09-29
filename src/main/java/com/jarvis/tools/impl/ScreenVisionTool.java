@@ -77,83 +77,102 @@ public class ScreenVisionTool implements JarvisTool {
             question = "Please analyze what is displayed on the user's screen in detail and describe the main window, code, error, or content visible.";
         }
 
+        String inputImage = (String) params.get("image_base64");
+        if (inputImage == null || inputImage.isBlank()) {
+            inputImage = (String) params.get("imageBase64");
+        }
+
+        String base64Image = null;
+        int targetWidth = 1920;
+        int targetHeight = 1080;
+
         try {
-            log.info("[ScreenVision] Capturing desktop screen...");
-            BufferedImage capture = null;
+            if (inputImage != null && !inputImage.isBlank()) {
+                base64Image = inputImage.contains(",") ? inputImage.split(",")[1] : inputImage;
+                log.info("[ScreenVision] Using direct screen capture from browser (payload: {} KB)", base64Image.length() * 3 / 4 / 1024);
+            } else {
+                log.info("[ScreenVision] Capturing desktop screen...");
+                BufferedImage capture = null;
 
-            // 1. Try Java AWT Robot (ensure headless mode is disabled)
-            try {
-                System.setProperty("java.awt.headless", "false");
-                Toolkit toolkit = Toolkit.getDefaultToolkit();
-                Dimension screenSize = toolkit.getScreenSize();
-                Rectangle screenRect = new Rectangle(screenSize);
-                Robot robot = new Robot();
-                BufferedImage awtCap = robot.createScreenCapture(screenRect);
-                if (awtCap != null && !isBlack(awtCap)) {
-                    capture = awtCap;
-                    log.info("[ScreenVision] Captured screen via Java AWT Robot ({}x{})", capture.getWidth(), capture.getHeight());
-                } else {
-                    log.warn("[ScreenVision] AWT Robot captured black/uninitialized screen. Trying native PowerShell...");
-                }
-            } catch (Throwable t) {
-                log.warn("[ScreenVision] AWT Robot capture failed ({}). Attempting PowerShell capture...", t.getMessage());
-            }
-
-            // 2. PowerShell fallback if Robot failed or captured black image
-            if (capture == null) {
+                // 1. Try Java AWT Robot (ensure headless mode is disabled)
                 try {
-                    java.nio.file.Path tempJpg = java.nio.file.Files.createTempFile("jarvis_screen_", ".jpg");
-                    java.nio.file.Path scriptFile = java.nio.file.Files.createTempFile("jarvis_cap_", ".ps1");
-                    String outPath = tempJpg.toAbsolutePath().toString().replace("\\", "/");
-                    String script = "Add-Type -AssemblyName System.Windows.Forms\n" +
-                            "Add-Type -AssemblyName System.Drawing\n" +
-                            "$s = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds\n" +
-                            "$b = New-Object System.Drawing.Bitmap $s.Width, $s.Height\n" +
-                            "$g = [System.Drawing.Graphics]::FromImage($b)\n" +
-                            "try {\n" +
-                            "  $g.CopyFromScreen($s.Location, [System.Drawing.Point]::Empty, $s.Size)\n" +
-                            "  $b.Save('" + outPath + "', [System.Drawing.Imaging.ImageFormat]::Jpeg)\n" +
-                            "} catch {}\n" +
-                            "finally {\n" +
-                            "  $b.Dispose()\n" +
-                            "  $g.Dispose()\n" +
-                            "}\n";
-                    java.nio.file.Files.writeString(scriptFile, script);
-                    Process p = new ProcessBuilder("powershell.exe", "-ExecutionPolicy", "Bypass", "-File", scriptFile.toAbsolutePath().toString()).start();
-                    p.waitFor(6, java.util.concurrent.TimeUnit.SECONDS);
-                    java.nio.file.Files.deleteIfExists(scriptFile);
-                    if (java.nio.file.Files.exists(tempJpg) && java.nio.file.Files.size(tempJpg) > 500) {
-                        BufferedImage psCap = ImageIO.read(tempJpg.toFile());
-                        java.nio.file.Files.deleteIfExists(tempJpg);
-                        if (psCap != null && !isBlack(psCap)) {
-                            capture = psCap;
-                            log.info("[ScreenVision] Captured screen via PowerShell fallback");
-                        }
+                    System.setProperty("java.awt.headless", "false");
+                    Toolkit toolkit = Toolkit.getDefaultToolkit();
+                    Dimension screenSize = toolkit.getScreenSize();
+                    Rectangle screenRect = new Rectangle(screenSize);
+                    Robot robot = new Robot();
+                    BufferedImage awtCap = robot.createScreenCapture(screenRect);
+                    if (awtCap != null && !isBlack(awtCap)) {
+                        capture = awtCap;
+                        log.info("[ScreenVision] Captured screen via Java AWT Robot ({}x{})", capture.getWidth(), capture.getHeight());
+                    } else {
+                        log.warn("[ScreenVision] AWT Robot captured black/uninitialized screen. Trying native PowerShell...");
                     }
-                } catch (Exception ex) {
-                    log.warn("[ScreenVision] PowerShell capture failed: {}", ex.getMessage());
+                } catch (Throwable t) {
+                    log.warn("[ScreenVision] AWT Robot capture failed ({}). Attempting PowerShell capture...", t.getMessage());
                 }
+
+                // 2. PowerShell fallback if Robot failed or captured black image
+                if (capture == null) {
+                    try {
+                        java.nio.file.Path tempJpg = java.nio.file.Files.createTempFile("jarvis_screen_", ".jpg");
+                        java.nio.file.Path scriptFile = java.nio.file.Files.createTempFile("jarvis_cap_", ".ps1");
+                        String outPath = tempJpg.toAbsolutePath().toString().replace("\\", "/");
+                        String script = "Add-Type -AssemblyName System.Windows.Forms\n" +
+                                "Add-Type -AssemblyName System.Drawing\n" +
+                                "$s = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds\n" +
+                                "$b = New-Object System.Drawing.Bitmap $s.Width, $s.Height\n" +
+                                "$g = [System.Drawing.Graphics]::FromImage($b)\n" +
+                                "try {\n" +
+                                "  $g.CopyFromScreen($s.Location, [System.Drawing.Point]::Empty, $s.Size)\n" +
+                                "  $b.Save('" + outPath + "', [System.Drawing.Imaging.ImageFormat]::Jpeg)\n" +
+                                "} catch {}\n" +
+                                "finally {\n" +
+                                "  $b.Dispose()\n" +
+                                "  $g.Dispose()\n" +
+                                "}\n";
+                        java.nio.file.Files.writeString(scriptFile, script);
+                        Process p = new ProcessBuilder("powershell.exe", "-ExecutionPolicy", "Bypass", "-File", scriptFile.toAbsolutePath().toString()).start();
+                        p.waitFor(6, java.util.concurrent.TimeUnit.SECONDS);
+                        java.nio.file.Files.deleteIfExists(scriptFile);
+                        if (java.nio.file.Files.exists(tempJpg) && java.nio.file.Files.size(tempJpg) > 500) {
+                            BufferedImage psCap = ImageIO.read(tempJpg.toFile());
+                            java.nio.file.Files.deleteIfExists(tempJpg);
+                            if (psCap != null && !isBlack(psCap)) {
+                                capture = psCap;
+                                log.info("[ScreenVision] Captured screen via PowerShell fallback");
+                            }
+                        }
+                    } catch (Exception ex) {
+                        log.warn("[ScreenVision] PowerShell capture failed: {}", ex.getMessage());
+                    }
+                }
+
+                if (capture == null || isBlack(capture)) {
+                    log.info("[ScreenVision] Headless OS environment detected — delegating screen capture to browser client");
+                    return ToolResult.builder()
+                            .success(true)
+                            .summary("Connecting to your workstation optical feed... Please select your screen to share in the browser prompt.")
+                            .uiAction(Map.of("action", "CAPTURE_SCREEN", "question", question))
+                            .build();
+                }
+
+                // Scale down if huge (e.g. 4K) to reduce latency and token size
+                targetWidth = Math.min(1920, capture.getWidth());
+                targetHeight = (int) ((double) capture.getHeight() * ((double) targetWidth / capture.getWidth()));
+                BufferedImage scaled = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);
+                Graphics2D g = scaled.createGraphics();
+                g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
+                g.drawImage(capture, 0, 0, targetWidth, targetHeight, null);
+                g.dispose();
+
+                // Compress to JPEG
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                ImageIO.write(scaled, "jpeg", baos);
+                byte[] imageBytes = baos.toByteArray();
+                base64Image = Base64.getEncoder().encodeToString(imageBytes);
+                log.info("[ScreenVision] Screen captured: {}x{}, {} KB. Sending to Gemini Vision...", targetWidth, targetHeight, imageBytes.length / 1024);
             }
-
-            if (capture == null || isBlack(capture)) {
-                return ToolResult.failure("I am unable to capture an active visual feed of your desktop display, Mr. Raj. This typically occurs when the background server lacks interactive desktop capture permissions or the monitor is locked. Please ensure your workspace is active, or use the 📸 OPTICAL CAM viewfinder.");
-            }
-
-            // 3. Scale down if huge (e.g. 4K) to reduce latency and token size
-            int targetWidth = Math.min(1920, capture.getWidth());
-            int targetHeight = (int) ((double) capture.getHeight() * ((double) targetWidth / capture.getWidth()));
-            BufferedImage scaled = new BufferedImage(targetWidth, targetHeight, BufferedImage.TYPE_INT_RGB);
-            Graphics2D g = scaled.createGraphics();
-            g.setRenderingHint(RenderingHints.KEY_INTERPOLATION, RenderingHints.VALUE_INTERPOLATION_BILINEAR);
-            g.drawImage(capture, 0, 0, targetWidth, targetHeight, null);
-            g.dispose();
-
-            // 4. Compress to JPEG
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            ImageIO.write(scaled, "jpeg", baos);
-            byte[] imageBytes = baos.toByteArray();
-            String base64Image = Base64.getEncoder().encodeToString(imageBytes);
-            log.info("[ScreenVision] Screen captured: {}x{}, {} KB. Sending to Gemini Vision...", targetWidth, targetHeight, imageBytes.length / 1024);
 
             // 5. Retrieve Gemini API key and model from settings
             JarvisSettings settings = settingsService.getSettings("default");
