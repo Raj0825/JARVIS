@@ -17,8 +17,6 @@ import java.util.Arrays;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 /**
  * Web search tool using DuckDuckGo instant answer API (no key required).
@@ -89,8 +87,10 @@ public class WebSearchTool implements JarvisTool {
                 com.fasterxml.jackson.databind.ObjectMapper om = new com.fasterxml.jackson.databind.ObjectMapper();
                 com.fasterxml.jackson.databind.JsonNode root = om.readTree(body);
 
-                String abstract_ = root.path("Abstract").asText("");
                 String abstractText = root.path("AbstractText").asText("");
+                if (abstractText.isEmpty()) {
+                    abstractText = root.path("Abstract").asText("");
+                }
                 String answerText = root.path("Answer").asText("");
                 String abstractSource = root.path("AbstractSource").asText("");
                 String abstractUrl = root.path("AbstractURL").asText("");

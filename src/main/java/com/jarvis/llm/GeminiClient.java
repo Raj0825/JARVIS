@@ -80,7 +80,6 @@ public class GeminiClient implements LlmClient {
                                 Map<?, ?> fn = (Map<?, ?>) tc.get("function");
                                 String name = fn != null ? (String) fn.get("name") : "";
                                 String argsJson = fn != null ? (String) fn.get("arguments") : "{}";
-                                String id = (String) tc.get("id");
                                 ObjectNode part = mapper.createObjectNode();
                                 ObjectNode fc = mapper.createObjectNode();
                                 fc.put("name", name);
