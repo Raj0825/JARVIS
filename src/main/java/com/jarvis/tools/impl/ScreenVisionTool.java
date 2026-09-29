@@ -88,13 +88,18 @@ public class ScreenVisionTool implements JarvisTool {
                 Dimension screenSize = toolkit.getScreenSize();
                 Rectangle screenRect = new Rectangle(screenSize);
                 Robot robot = new Robot();
-                capture = robot.createScreenCapture(screenRect);
-                log.info("[ScreenVision] Captured screen via Java AWT Robot ({}x{})", capture.getWidth(), capture.getHeight());
+                BufferedImage awtCap = robot.createScreenCapture(screenRect);
+                if (awtCap != null && !isBlack(awtCap)) {
+                    capture = awtCap;
+                    log.info("[ScreenVision] Captured screen via Java AWT Robot ({}x{})", capture.getWidth(), capture.getHeight());
+                } else {
+                    log.warn("[ScreenVision] AWT Robot captured black/uninitialized screen. Trying native PowerShell...");
+                }
             } catch (Throwable t) {
                 log.warn("[ScreenVision] AWT Robot capture failed ({}). Attempting PowerShell capture...", t.getMessage());
             }
 
-            // 2. PowerShell fallback if Robot failed
+            // 2. PowerShell fallback if Robot failed or captured black image
             if (capture == null) {
                 try {
                     java.nio.file.Path tempJpg = java.nio.file.Files.createTempFile("jarvis_screen_", ".jpg");
@@ -105,26 +110,33 @@ public class ScreenVisionTool implements JarvisTool {
                             "$s = [System.Windows.Forms.Screen]::PrimaryScreen.Bounds\n" +
                             "$b = New-Object System.Drawing.Bitmap $s.Width, $s.Height\n" +
                             "$g = [System.Drawing.Graphics]::FromImage($b)\n" +
-                            "$g.CopyFromScreen($s.Location, [System.Drawing.Point]::Empty, $s.Size)\n" +
-                            "$b.Save('" + outPath + "', [System.Drawing.Imaging.ImageFormat]::Jpeg)\n" +
-                            "$b.Dispose()\n" +
-                            "$g.Dispose()\n";
+                            "try {\n" +
+                            "  $g.CopyFromScreen($s.Location, [System.Drawing.Point]::Empty, $s.Size)\n" +
+                            "  $b.Save('" + outPath + "', [System.Drawing.Imaging.ImageFormat]::Jpeg)\n" +
+                            "} catch {}\n" +
+                            "finally {\n" +
+                            "  $b.Dispose()\n" +
+                            "  $g.Dispose()\n" +
+                            "}\n";
                     java.nio.file.Files.writeString(scriptFile, script);
                     Process p = new ProcessBuilder("powershell.exe", "-ExecutionPolicy", "Bypass", "-File", scriptFile.toAbsolutePath().toString()).start();
                     p.waitFor(6, java.util.concurrent.TimeUnit.SECONDS);
                     java.nio.file.Files.deleteIfExists(scriptFile);
                     if (java.nio.file.Files.exists(tempJpg) && java.nio.file.Files.size(tempJpg) > 500) {
-                        capture = ImageIO.read(tempJpg.toFile());
+                        BufferedImage psCap = ImageIO.read(tempJpg.toFile());
                         java.nio.file.Files.deleteIfExists(tempJpg);
-                        log.info("[ScreenVision] Captured screen via PowerShell fallback");
+                        if (psCap != null && !isBlack(psCap)) {
+                            capture = psCap;
+                            log.info("[ScreenVision] Captured screen via PowerShell fallback");
+                        }
                     }
                 } catch (Exception ex) {
                     log.warn("[ScreenVision] PowerShell capture failed: {}", ex.getMessage());
                 }
             }
 
-            if (capture == null) {
-                return ToolResult.failure("Unable to capture screen. Please verify display is active and unlocked.");
+            if (capture == null || isBlack(capture)) {
+                return ToolResult.failure("I am unable to capture an active visual feed of your desktop display, Mr. Raj. This typically occurs when the background server lacks interactive desktop capture permissions or the monitor is locked. Please ensure your workspace is active, or use the 📸 OPTICAL CAM viewfinder.");
             }
 
             // 3. Scale down if huge (e.g. 4K) to reduce latency and token size
@@ -230,5 +242,28 @@ public class ScreenVisionTool implements JarvisTool {
     @Override
     public boolean isEffectful() {
         return false;
+    }
+
+    private boolean isBlack(BufferedImage img) {
+        if (img == null) return true;
+        int w = img.getWidth();
+        int h = img.getHeight();
+        if (w == 0 || h == 0) return true;
+        int stepX = Math.max(1, w / 35);
+        int stepY = Math.max(1, h / 35);
+        int nonBlackCount = 0;
+        for (int x = 0; x < w; x += stepX) {
+            for (int y = 0; y < h; y += stepY) {
+                int rgb = img.getRGB(x, y);
+                int r = (rgb >> 16) & 0xFF;
+                int g = (rgb >> 8) & 0xFF;
+                int b = rgb & 0xFF;
+                if (r > 12 || g > 12 || b > 12) {
+                    nonBlackCount++;
+                    if (nonBlackCount > 5) return false;
+                }
+            }
+        }
+        return true;
     }
 }
