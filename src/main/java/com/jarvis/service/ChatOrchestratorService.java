@@ -91,7 +91,9 @@ public class ChatOrchestratorService {
                     callback.onFinalReply(lastToolSummary);
                     return;
                 }
-                String errMsg = "I'm sorry sir, I encountered an issue: " + response.getError();
+                String callSign = settings.getUserCallSign() != null && !settings.getUserCallSign().isBlank() ? settings.getUserCallSign() : "Mr. Raj";
+                String errMsg = "There is an error in the system, " + callSign + ". Please try again.";
+                log.warn("[Orchestrator] LLM error encountered: {}", response.getError());
                 persistAssistantMessage(conversationId, errMsg, null);
                 callback.onError(response.getError());
                 callback.onFinalReply(errMsg);

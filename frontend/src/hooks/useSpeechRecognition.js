@@ -20,15 +20,40 @@ export function useSpeechRecognition({ onTranscript, onWakeWord, onBargein, isJa
   const wakeActiveRef = useRef(false); // whether wake-word mode is enabled
   const manualListeningRef = useRef(false); // whether push-to-talk is actively listening
   const awaitingCommandRef = useRef(false); // whether user just said "hey jarvis" and we are waiting for next sentence
+  const accumulatedCommandRef = useRef(''); // full accumulated text of the task
   const isSpeakingRef = useRef(isJarvisSpeaking);
   isSpeakingRef.current = isJarvisSpeaking;
 
   const restartTimerRef = useRef(null);
+  const silenceTimerRef = useRef(null);
   const awaitingTimeoutRef = useRef(null);
   const consecutiveErrorsRef = useRef(0);
 
   const callbacksRef = useRef({ onTranscript, onWakeWord, onBargein });
   callbacksRef.current = { onTranscript, onWakeWord, onBargein };
+
+  // Dispatches the fully accumulated task to the orchestrator
+  const commitTask = useCallback(() => {
+    if (silenceTimerRef.current) {
+      clearTimeout(silenceTimerRef.current);
+      silenceTimerRef.current = null;
+    }
+    if (awaitingTimeoutRef.current) {
+      clearTimeout(awaitingTimeoutRef.current);
+      awaitingTimeoutRef.current = null;
+    }
+
+    const taskText = accumulatedCommandRef.current.trim();
+    accumulatedCommandRef.current = '';
+    manualListeningRef.current = false;
+    awaitingCommandRef.current = false;
+    setIsListening(false);
+
+    if (taskText.length > 1) {
+      console.log('[STT] Committing full task:', taskText);
+      callbacksRef.current.onTranscript?.(taskText);
+    }
+  }, []);
 
   useEffect(() => {
     const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
@@ -52,29 +77,38 @@ export function useSpeechRecognition({ onTranscript, onWakeWord, onBargein, isJa
 
     rec.onresult = (e) => {
       const results = e.results;
-      const lastResult = results[results.length - 1];
-      const transcript = lastResult[0].transcript.toLowerCase().trim();
-      const isFinal = lastResult.isFinal;
 
       // Barge-in check: if Jarvis is speaking and user says something
       if (isSpeakingRef.current?.current) {
         callbacksRef.current.onBargein?.();
       }
 
-      if (!wakeActiveRef.current) {
-        // Standard push-to-talk mode
-        if (isFinal && transcript) {
-          manualListeningRef.current = false;
-          setIsListening(false);
-          callbacksRef.current.onTranscript?.(transcript);
+      // Collect the current full transcript from all segments in this utterance
+      let currentTranscript = '';
+      for (let i = 0; i < results.length; i++) {
+        currentTranscript += results[i][0].transcript + ' ';
+      }
+      currentTranscript = currentTranscript.toLowerCase().trim();
+
+      // ─── Case 1: Push-To-Talk Manual Mode ────────────────────────────
+      if (!wakeActiveRef.current || manualListeningRef.current) {
+        if (currentTranscript.length > 0) {
+          accumulatedCommandRef.current = currentTranscript;
+          setIsListening(true);
+
+          // Reset silence debounce timer: wait 1800ms of silence before submitting complete task
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = setTimeout(() => {
+            commitTask();
+          }, 1800);
         }
         return;
       }
 
-      // ─── Continuous Wake-Word Mode ──────────────────────────────────
+      // ─── Case 2: Continuous Wake-Word Mode ───────────────────────────
       let matchedWakeWord = null;
       for (const w of WAKE_WORDS) {
-        if (transcript.includes(w)) {
+        if (currentTranscript.includes(w)) {
           matchedWakeWord = w;
           break;
         }
@@ -83,38 +117,40 @@ export function useSpeechRecognition({ onTranscript, onWakeWord, onBargein, isJa
       if (matchedWakeWord) {
         callbacksRef.current.onWakeWord?.();
         setIsListening(true);
+        awaitingCommandRef.current = true;
 
-        // Check if there is already a command after the wake word in the same sentence
-        const idx = transcript.indexOf(matchedWakeWord);
-        const commandAfter = transcript.substring(idx + matchedWakeWord.length).trim();
+        // Extract any words that follow the wake word
+        const idx = currentTranscript.indexOf(matchedWakeWord);
+        const commandAfter = currentTranscript.substring(idx + matchedWakeWord.length).trim();
 
-        if (commandAfter.length > 2) {
-          if (isFinal) {
-            awaitingCommandRef.current = false;
-            setIsListening(false);
-            if (awaitingTimeoutRef.current) clearTimeout(awaitingTimeoutRef.current);
-            callbacksRef.current.onTranscript?.(commandAfter);
-          }
+        if (commandAfter.length > 1) {
+          accumulatedCommandRef.current = commandAfter;
+          // Set silence debounce timer: user is speaking the task, wait until they finish talking
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = setTimeout(() => {
+            commitTask();
+          }, 1800);
         } else {
-          // User just said "hey jarvis", wait for the follow-up sentence
-          awaitingCommandRef.current = true;
+          // User just said "hey jarvis", wait up to 10s for them to start speaking their command
           if (awaitingTimeoutRef.current) clearTimeout(awaitingTimeoutRef.current);
           awaitingTimeoutRef.current = setTimeout(() => {
-            awaitingCommandRef.current = false;
-            setIsListening(false);
-          }, 7000);
+            if (awaitingCommandRef.current && !accumulatedCommandRef.current.trim()) {
+              awaitingCommandRef.current = false;
+              setIsListening(false);
+            }
+          }, 10000);
         }
-      } else if (awaitingCommandRef.current && isFinal && transcript) {
-        // User spoke the command in the follow-up sentence
-        awaitingCommandRef.current = false;
-        setIsListening(false);
-        if (awaitingTimeoutRef.current) clearTimeout(awaitingTimeoutRef.current);
-        callbacksRef.current.onTranscript?.(transcript);
-      } else if (manualListeningRef.current && isFinal && transcript) {
-        // User manually triggered mic while in wake-word mode
-        manualListeningRef.current = false;
-        setIsListening(false);
-        callbacksRef.current.onTranscript?.(transcript);
+      } else if (awaitingCommandRef.current) {
+        // User is continuing to speak the task after saying "hey jarvis"
+        if (currentTranscript.length > 0) {
+          accumulatedCommandRef.current = currentTranscript;
+          setIsListening(true);
+
+          if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+          silenceTimerRef.current = setTimeout(() => {
+            commitTask();
+          }, 1800);
+        }
       }
     };
 
@@ -128,10 +164,15 @@ export function useSpeechRecognition({ onTranscript, onWakeWord, onBargein, isJa
     };
 
     rec.onend = () => {
-      // If manual mode was on and wake mode is off, reset listening state
+      // If manual mode was on and wake mode is off
       if (!wakeActiveRef.current) {
-        manualListeningRef.current = false;
-        setIsListening(false);
+        // If there was pending accumulated speech when the mic ended, commit it now
+        if (accumulatedCommandRef.current.trim()) {
+          commitTask();
+        } else {
+          manualListeningRef.current = false;
+          setIsListening(false);
+        }
         return;
       }
 
@@ -158,14 +199,16 @@ export function useSpeechRecognition({ onTranscript, onWakeWord, onBargein, isJa
       wakeActiveRef.current = false;
       manualListeningRef.current = false;
       if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
       if (awaitingTimeoutRef.current) clearTimeout(awaitingTimeoutRef.current);
       try {
         rec.abort();
       } catch (_) {}
     };
-  }, []);
+  }, [commitTask]);
 
   const startListening = useCallback(() => {
+    accumulatedCommandRef.current = '';
     manualListeningRef.current = true;
     setIsListening(true);
     if (!recognitionRef.current) return;
@@ -177,18 +220,24 @@ export function useSpeechRecognition({ onTranscript, onWakeWord, onBargein, isJa
   }, []);
 
   const stopListening = useCallback(() => {
-    manualListeningRef.current = false;
-    awaitingCommandRef.current = false;
-    setIsListening(false);
-    if (awaitingTimeoutRef.current) clearTimeout(awaitingTimeoutRef.current);
-    if (!recognitionRef.current) return;
+    // Immediately commit whatever was spoken without waiting for silence timer
+    if (accumulatedCommandRef.current.trim()) {
+      commitTask();
+    } else {
+      manualListeningRef.current = false;
+      awaitingCommandRef.current = false;
+      setIsListening(false);
+      if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
+      if (awaitingTimeoutRef.current) clearTimeout(awaitingTimeoutRef.current);
+      if (!recognitionRef.current) return;
 
-    if (!wakeActiveRef.current) {
-      try {
-        recognitionRef.current.stop();
-      } catch (_) {}
+      if (!wakeActiveRef.current) {
+        try {
+          recognitionRef.current.stop();
+        } catch (_) {}
+      }
     }
-  }, []);
+  }, [commitTask]);
 
   const toggleWakeWordMode = useCallback((enable) => {
     const next = enable !== undefined ? enable : !wakeActiveRef.current;
@@ -196,12 +245,14 @@ export function useSpeechRecognition({ onTranscript, onWakeWord, onBargein, isJa
     setWakeWordMode(next);
 
     if (restartTimerRef.current) clearTimeout(restartTimerRef.current);
+    if (silenceTimerRef.current) clearTimeout(silenceTimerRef.current);
 
     if (next) {
       try {
         recognitionRef.current?.start();
       } catch (_) {}
     } else {
+      accumulatedCommandRef.current = '';
       manualListeningRef.current = false;
       awaitingCommandRef.current = false;
       setIsListening(false);

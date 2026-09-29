@@ -262,7 +262,8 @@ export default function App() {
     onError: (err) => {
       setIsThinking(false);
       setReactorState('idle');
-      addMessage('assistant', `⚠ Error: ${err}`, null, true);
+      console.warn('[Jarvis Socket Error]:', err);
+      addMessage('assistant', `⚠ There is some error in system. Please try again.`, null, true);
       audioEffects.error();
     },
   });
@@ -451,7 +452,7 @@ export default function App() {
         <div className="topbar">
           <div className="brand">
             JARVIS
-            <span className="brand-sub">STARK INDUSTRIES PERSONAL ASSISTANT INTERFACE // BUILD 1.0</span>
+            <span className="brand-sub">STARK INDUSTRIES PERSONAL ASSISTANT // BUILD 1.0</span>
           </div>
           <div className="top-meta">
             <div className="readout">
@@ -472,14 +473,14 @@ export default function App() {
               </div>
             </div>
             {wsStatus !== 'connected' && (
-              <button className="btn-icon" id="btn-reconnect" title="Reconnect to backend"
+              <button className="btn-icon btn-topbar-action" id="btn-reconnect" title="Reconnect to backend"
                 onClick={reconnect}
-                style={{ border: '1px solid var(--c-danger)', color: 'var(--c-danger)', animation: 'mic-pulse 1s ease-in-out infinite', fontSize: 11, width: 'auto', padding: '0 10px', borderRadius: 2, letterSpacing: 1, fontFamily: 'Rajdhani', fontWeight: 700 }}>
+                style={{ border: '1px solid var(--c-danger)', color: 'var(--c-danger)', animation: 'mic-pulse 1s ease-in-out infinite' }}>
                 ⟳ RECONNECT
               </button>
             )}
             <button
-              className="btn-icon"
+              className="btn-icon btn-topbar-action"
               id="btn-wake-word"
               title="Toggle Hands-Free Wake Word ('Hello Jarvis' / 'Hey Jarvis')"
               onClick={() => toggleWakeWordMode()}
@@ -487,59 +488,30 @@ export default function App() {
                 border: '1px solid ' + (wakeWordMode ? 'var(--c-glow)' : 'var(--c-line)'),
                 color: wakeWordMode ? 'var(--c-glow)' : 'var(--c-mid)',
                 background: wakeWordMode ? 'rgba(var(--c-glow-rgb), 0.15)' : 'transparent',
-                fontSize: 11,
-                width: 'auto',
-                padding: '0 10px',
-                borderRadius: 2,
-                letterSpacing: 1,
-                fontFamily: 'Rajdhani',
-                fontWeight: 700,
                 boxShadow: wakeWordMode ? '0 0 10px rgba(var(--c-glow-rgb), 0.4)' : 'none',
-                transition: 'all 0.3s ease'
               }}
             >
               {wakeWordMode ? '🎙 HANDS-FREE: ON' : '🎙 HANDS-FREE: OFF'}
             </button>
             <button
-              className="btn-icon"
+              className="btn-icon btn-topbar-action"
               id="btn-biometrics"
               title="Biometric Security Scan"
               onClick={() => setShowBiometrics(true)}
-              style={{
-                border: '1px solid var(--c-line)',
-                color: 'var(--c-bright)',
-                fontSize: 11,
-                width: 'auto',
-                padding: '0 10px',
-                borderRadius: 2,
-                letterSpacing: 1,
-                fontFamily: 'Rajdhani',
-                fontWeight: 700,
-              }}
             >
-              👁 BIOMETRIC SCAN
+              👁 BIOMETRICS
             </button>
             <button
-              className="btn-icon"
+              className="btn-icon btn-topbar-action"
               id="btn-optical-cam"
               title="Activate Optical Sentry / Webcam Viewfinder"
               onClick={() => setShowWebcam(true)}
-              style={{
-                border: '1px solid var(--c-line)',
-                color: 'var(--c-glow)',
-                fontSize: 11,
-                width: 'auto',
-                padding: '0 10px',
-                borderRadius: 2,
-                letterSpacing: 1,
-                fontFamily: 'Rajdhani',
-                fontWeight: 700,
-              }}
+              style={{ color: 'var(--c-glow)' }}
             >
               📸 OPTICAL CAM
             </button>
             <button
-              className="btn-icon"
+              className="btn-icon btn-topbar-action"
               id="btn-meeting-whisperer"
               title="Launch The Meeting Whisperer (Live Interview & Meeting Stealth HUD)"
               onClick={() => setShowWhisperer(true)}
@@ -547,13 +519,6 @@ export default function App() {
                 border: '1px solid ' + (showWhisperer ? 'var(--c-glow)' : 'var(--c-line)'),
                 color: showWhisperer ? 'var(--c-glow)' : 'var(--c-bright)',
                 background: showWhisperer ? 'rgba(var(--c-glow-rgb), 0.2)' : 'transparent',
-                fontSize: 11,
-                width: 'auto',
-                padding: '0 10px',
-                borderRadius: 2,
-                letterSpacing: 1,
-                fontFamily: 'Rajdhani',
-                fontWeight: 700,
                 boxShadow: showWhisperer ? '0 0 10px rgba(var(--c-glow-rgb), 0.4)' : 'none',
               }}
             >
@@ -584,8 +549,8 @@ export default function App() {
               setHudCards([]);
               setToolLog([]);
             }}>↺</button>
-            <div className="clock">{clock}</div>
           </div>
+          <div className="clock" id="hud-clock">{clock}</div>
         </div>
 
         {/* ─── Left panel ──────────────────────────────────────────────── */}
