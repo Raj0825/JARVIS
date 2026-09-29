@@ -4,7 +4,7 @@ export function SettingsModal({ onClose, initialSettings, onSave }) {
   const [settings, setSettings] = useState(() => {
     const base = {
       provider: 'GEMINI',
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3-flash-preview',
       apiKey: '',
       apiBaseUrl: '',
       temperature: 0.7,
@@ -214,12 +214,13 @@ export function SettingsModal({ onClose, initialSettings, onSave }) {
               {settings.provider === 'GEMINI' ? (
                 <select
                   className="form-select"
-                  value={(!settings.model || settings.model.includes('2.0') || settings.model.includes('3.5') || settings.model === 'gemini-2.5-flash') ? 'gemini-1.5-flash' : settings.model}
+                  value={(!settings.model || settings.model.includes('1.5') || settings.model.includes('2.0') || settings.model === 'gemini-2.5-flash') ? 'gemini-3-flash-preview' : settings.model}
                   onChange={e => update('model', e.target.value)}
                 >
-                  <option value="gemini-1.5-flash">gemini-1.5-flash (Recommended — 1,500 Requests/Day Free Tier)</option>
-                  <option value="gemini-1.5-pro">gemini-1.5-pro (Deep Coding & Logic)</option>
-                  <option value="gemini-3.6-flash">gemini-3.6-flash (Preview — Strict 20 Requests/Day Quota)</option>
+                  <option value="gemini-3-flash-preview">gemini-3-flash-preview (Recommended — Active & Responsive)</option>
+                  <option value="gemini-3.1-flash-lite-preview">gemini-3.1-flash-lite-preview (Ultra-Fast Lightweight Flash)</option>
+                  <option value="gemini-3.5-flash">gemini-3.5-flash (Next-Gen Intelligence)</option>
+                  <option value="gemini-3.6-flash">gemini-3.6-flash (Advanced Preview)</option>
                 </select>
               ) : (
                 <input

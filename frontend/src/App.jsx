@@ -36,7 +36,7 @@ export default function App() {
   const [settings, setSettings] = useState(() => {
     const fallback = {
       provider: 'GEMINI',
-      model: 'gemini-1.5-flash',
+      model: 'gemini-3-flash-preview',
       userCallSign: 'Mr. Raj',
       userName: 'Raj Shah',
       allowWrites: true,

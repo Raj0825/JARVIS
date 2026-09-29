@@ -157,16 +157,13 @@ public class GeminiClient implements LlmClient {
             genConfig.put("temperature", temperature);
             body.set("generationConfig", genConfig);
 
-            String cleanModel = (model != null && !model.isBlank()) ? model.trim() : "gemini-1.5-flash";
+            String cleanModel = (model != null && !model.isBlank()) ? model.trim() : "gemini-3-flash-preview";
             if (cleanModel.startsWith("models/")) {
                 cleanModel = cleanModel.substring(7);
             }
-            if (cleanModel.equals("gemini-2.0-flash") || cleanModel.contains("3.5")
-                    || cleanModel.equalsIgnoreCase("gemini-3.5-flash-lite")
-                    || cleanModel.equalsIgnoreCase("gemini-flash-lite")
-                    || cleanModel.equalsIgnoreCase("gemini-2.5-flash")
+            if (cleanModel.equals("gemini-1.5-flash") || cleanModel.equals("gemini-2.0-flash")
                     || cleanModel.contains("mock")) {
-                cleanModel = "gemini-1.5-flash";
+                cleanModel = "gemini-3-flash-preview";
             }
 
             String url = BASE_URL + cleanModel + ":generateContent?key=" + apiKey;
@@ -182,8 +179,8 @@ public class GeminiClient implements LlmClient {
                     String errBody = response.body() != null ? response.body().string() : "(no body)";
                     log.warn("[Gemini] Model '{}' returned HTTP {}: {}. Initiating multi-model self-healing...", cleanModel, response.code(), errBody);
 
-                    // Multi-model waterfall fallback: gemini-1.5-flash, gemini-1.5-flash-latest, gemini-1.5-pro, gemini-1.5-flash-8b
-                    List<String> fallbacks = List.of("gemini-1.5-flash", "gemini-1.5-flash-latest", "gemini-1.5-pro", "gemini-1.5-flash-8b");
+                    // Multi-model waterfall fallback: gemini-3-flash-preview, gemini-3.1-flash-lite-preview, gemini-3.5-flash, gemini-3.6-flash
+                    List<String> fallbacks = List.of("gemini-3-flash-preview", "gemini-3.1-flash-lite-preview", "gemini-3.5-flash", "gemini-3.6-flash");
                     for (String fb : fallbacks) {
                         if (fb.equals(cleanModel)) continue;
                         log.info("[Gemini] Auto-recovering with fallback model '{}'...", fb);
